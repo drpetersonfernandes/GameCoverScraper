@@ -1,0 +1,41 @@
+<controls:MetroWindow x:Class="GameCoverScraper.DebugWindow"
+                      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                      xmlns:controls="http://metro.mahapps.com/winfx/xaml/controls"
+                      mc:Ignorable="d"
+                      Title="Application Log" Height="450" Width="800"
+                      GlowBrush="{DynamicResource MahApps.Brushes.Accent}"
+                      WindowStartupLocation="CenterScreen">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5">
+            <Button x:Name="CopySelectionButton" Content="Copy Selection" Margin="0,0,5,0" Click="CopySelection_Click" IsEnabled="False" />
+            <Button Content="Copy All" Margin="0,0,5,0" Click="CopyLog_Click" />
+            <Button Content="Clear" Click="ClearLog_Click" />
+        </StackPanel>
+
+        <TextBox x:Name="LogTextBox"
+                 Grid.Row="1"
+                 Margin="5,0,5,5"
+                 FontFamily="Consolas"
+                 FontSize="12"
+                 TextWrapping="Wrap"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 VerticalScrollBarVisibility="Auto"
+                 SelectionChanged="LogTextBox_SelectionChanged">
+            <TextBox.ContextMenu>
+                <ContextMenu>
+                    <MenuItem x:Name="ContextMenuCopySelection" Header="Copy Selection" Click="CopySelection_Click" IsEnabled="False" />
+                    <MenuItem Header="Copy All" Click="CopyLog_Click" />
+                </ContextMenu>
+            </TextBox.ContextMenu>
+        </TextBox>
+    </Grid>
+</controls:MetroWindow>
