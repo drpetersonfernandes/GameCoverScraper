@@ -65,7 +65,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
     private string _statusMessageText = "Ready";
 
-    public MainWindow()
+    public MainWindow(string? startupImageFolder = null, string? startupRomFolder = null) // Modified constructor
     {
         InitializeComponent();
         AppLogger.Log("MainWindow initializing...");
@@ -128,6 +128,41 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         ToggleMameDescriptions.IsChecked = _settingsManager.UseMameDescriptions;
 
         InitializeWebViewAsync();
+
+        // --- Handle startup arguments ---
+        if (!string.IsNullOrEmpty(startupImageFolder))
+        {
+            TxtImageFolder.Text = startupImageFolder;
+            _imageFolderPath = startupImageFolder; // Also set the internal field
+            AppLogger.Log($"Image folder set from startup argument: '{startupImageFolder}'");
+        }
+
+        if (!string.IsNullOrEmpty(startupRomFolder))
+        {
+            TxtRomFolder.Text = startupRomFolder;
+            AppLogger.Log($"ROM folder set from startup argument: '{startupRomFolder}'");
+        }
+
+        // If both folders are provided, automatically trigger the check for missing images
+        if (!string.IsNullOrEmpty(TxtImageFolder.Text) && !string.IsNullOrEmpty(TxtRomFolder.Text))
+        {
+            AppLogger.Log("Both startup folders provided. Initializing FileSystemWatcher and checking for missing images automatically.");
+            InitializeFileSystemWatcher(); // Ensure watcher is set up for the provided image folder
+            // Use Dispatcher.BeginInvoke to ensure UI is fully rendered before starting heavy operations
+            // and to avoid blocking the constructor.
+            Dispatcher.BeginInvoke(new Action(void () =>
+            {
+                try
+                {
+                    BtnCheckForMissingImages_Click(this, new RoutedEventArgs());
+                }
+                catch (Exception ex)
+                {
+                    _ = BugReport.LogErrorAsync(ex, "Error in MainWindow constructor");
+                }
+            }), DispatcherPriority.Loaded);
+        }
+        // --- End handle startup arguments ---
     }
 
     private void InitializeFileSystemWatcher()
