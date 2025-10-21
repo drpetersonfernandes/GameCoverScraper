@@ -1314,8 +1314,8 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
     private static void MainWindow_Closing(object? sender, CancelEventArgs e)
     {
-        // Signal the log window that it should close completely, not just hide.
         App.LogWindow?.ForceClose();
+        App.LogWindow?.Close();
     }
 
     public void Dispose()
@@ -1324,8 +1324,8 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         _searchCts?.Dispose();
         _selectionDelayTimer?.Stop();
         _selectionDelayTimer = null;
-        _imageFolderWatcher?.Dispose(); // <-- ADD THIS LINE
-        WebView?.Dispose(); // Dispose WebView2
+        _imageFolderWatcher?.Dispose();
+        WebView?.Dispose();
         GC.SuppressFinalize(this);
     }
 }
