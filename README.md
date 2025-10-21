@@ -28,7 +28,7 @@ By default, the application supports:
 -   **Sega**: Genesis/Mega Drive (MD, SMD, GEN), 32X, Game Gear (GG), Master System (MS, GG, SGG, SC)
 -   **Other**: ROM, BIN
 
-You can easily add or remove supported extensions through the `settings.xml` file (though it's recommended to use the default list).
+You can easily add or remove supported extensions through the `settings.xml` file.
 
 ## 🚀 Getting Started
 
