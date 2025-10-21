@@ -6,7 +6,7 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <UseWPF>true</UseWPF>
-        <ApplicationIcon>images\icon.ico</ApplicationIcon>
+        <ApplicationIcon>images\scraper.ico</ApplicationIcon>
         <PackageIcon>icon2.png</PackageIcon>
         <AssemblyVersion>1.2</AssemblyVersion>
         <FileVersion>1.2</FileVersion>
