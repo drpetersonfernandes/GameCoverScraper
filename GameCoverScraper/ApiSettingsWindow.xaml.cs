@@ -3,9 +3,6 @@ using System.Windows.Navigation; // Add this using directive
 using System.Diagnostics;
 using GameCoverScraper.Managers;
 using GameCoverScraper.Services;
-// Add this using directive
-
-// Ensure BugReport is accessible
 
 namespace GameCoverScraper;
 
