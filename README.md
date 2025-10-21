@@ -186,4 +186,3 @@ Access detailed logs via:
 ---
 
 Made with ❤️ by [Pure Logic Code](https://www.purelogiccode.com)
-```
