@@ -2,7 +2,8 @@ using System.IO;
 using System.Windows;
 using GameCoverScraper.models;
 using GameCoverScraper.Services;
-using ImageMagick;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Png;
 
 namespace GameCoverScraper;
 
@@ -56,7 +57,7 @@ public partial class MainWindow
                 {
                     await using var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
 
-                    if (ConvertToPngAndSave(stream, localPath))
+                    if (await ConvertStreamToPngAndSave(stream, localPath).ConfigureAwait(false))
                     {
                         // Use Dispatcher to ensure UI operations happen on the UI thread
                         await Dispatcher.InvokeAsync(() =>
@@ -94,24 +95,38 @@ public partial class MainWindow
         }
     }
 
-    private static bool ConvertToPngAndSave(Stream inputStream, string outputPath)
+    /// <summary>
+    /// Converts an image from a source stream to a PNG format at a destination path.
+    /// Preserves the aspect ratio, dimensions, and transparency using SixLabors.ImageSharp.
+    /// </summary>
+    /// <param name="inputStream">The stream containing the source image data.</param>
+    /// <param name="outputPath">The path where the PNG image will be saved.</param>
+    /// <returns>True if conversion was successful, false otherwise.</returns>
+    private static async Task<bool> ConvertStreamToPngAndSave(Stream inputStream, string outputPath)
     {
         try
         {
             AppLogger.Log($"Converting stream to PNG and saving to '{outputPath}'.");
-            using var image = new MagickImage(inputStream);
-            image.Format = MagickFormat.Png;
-            image.Write(outputPath);
-            AppLogger.Log($"Successfully saved image to '{outputPath}'.");
+
+
+            // Ensure the destination directory exists
+            var destDir = Path.GetDirectoryName(outputPath);
+            if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+            {
+                Directory.CreateDirectory(destDir);
+            }
+
+            // ImageSharp automatically handles various formats and preserves properties
+            using (var image = await Image.LoadAsync(inputStream).ConfigureAwait(false))
+            {
+                // Save as PNG. ImageSharp handles aspect ratio, dimensions, and alpha channel by default.
+                await image.SaveAsPngAsync(outputPath, new PngEncoder()).ConfigureAwait(false);
+            }
+
+            AppLogger.Log($"Successfully saved image from stream to '{outputPath}'.");
+
 
             return true;
-        }
-        catch (MagickException ex)
-        {
-            MessageBox.Show("Magick.NET error: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            _ = BugReport.LogErrorAsync(ex, "Magick.NET error during image conversion.").ConfigureAwait(false);
-
-            return false;
         }
         catch (Exception ex)
         {

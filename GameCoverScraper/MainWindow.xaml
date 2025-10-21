@@ -176,7 +176,7 @@
             <MenuItem Header="Settings">
                 <MenuItem Click="ApiSettings_Click" Header="API Settings">
                     <MenuItem.Icon>
-                        <Image Source="pack://application:,,,/images/theme.png" Width="16" Height="16" />
+                        <Image Source="pack://application:,,,/images/keys.png" Width="16" Height="16" />
                     </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Click="ToggleDebugWindow_Click" x:Name="ToggleDebugWindow" Header="Show/Hide Log Window" IsCheckable="True" />

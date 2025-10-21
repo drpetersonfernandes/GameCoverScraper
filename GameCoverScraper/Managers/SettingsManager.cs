@@ -19,7 +19,7 @@ public class SettingsManager
     private const string DefaultBaseTheme = "Light";
     public string AccentColor { get; set; } = DefaultAccentColor;
     private const string DefaultAccentColor = "Blue";
-    public bool UseMameDescriptions { get; set; } = true;
+    public bool UseMameDescriptions { get; set; }
     public List<string> SupportedExtensions { get; private set; } = new();
 
     public string BugReportApiKey { get; set; } = DefaultBugReportApiKey;

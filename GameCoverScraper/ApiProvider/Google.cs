@@ -13,7 +13,6 @@ public class Google
 {
     private const int MaxResults = 10;
     private const string ProviderName = "Google";
-    private const string LogFileNamePrefix = "Google";
 
     private static readonly JsonSerializerOptions LogJsonSerializerOptions = new()
     {

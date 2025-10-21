@@ -147,8 +147,8 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         if (!string.IsNullOrEmpty(TxtImageFolder.Text) && !string.IsNullOrEmpty(TxtRomFolder.Text))
         {
             AppLogger.Log("Both startup folders provided. Initializing FileSystemWatcher and checking for missing images automatically.");
-            InitializeFileSystemWatcher(); // Ensure watcher is set up for the provided image folder
-            // Use Dispatcher.BeginInvoke to ensure UI is fully rendered before starting heavy operations
+            InitializeFileSystemWatcher(); // Ensure a watcher is set up for the provided image folder
+            // Use Dispatcher.BeginInvoke to ensure the UI is fully rendered before starting heavy operations
             // and to avoid blocking the constructor.
             Dispatcher.BeginInvoke(new Action(void () =>
             {
@@ -1316,8 +1316,6 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     {
         // Signal the log window that it should close completely, not just hide.
         App.LogWindow?.ForceClose();
-
-        Application.Current.Shutdown();
     }
 
     public void Dispose()

@@ -46,11 +46,12 @@
         <Resource Include="images\exit.png" />
         <None Remove="images\logo.png" />
         <Resource Include="images\logo.png" />
+        <None Remove="images\keys.png" />
+        <Resource Include="images\keys.png" />
     </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="AngleSharp" Version="1.3.0" />
-        <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.9.0" />
         <PackageReference Include="MahApps.Metro" Version="2.4.11" />
         <PackageReference Include="MessagePack" Version="3.1.4" />
         <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3537.50" />

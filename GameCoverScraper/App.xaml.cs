@@ -34,9 +34,6 @@ public partial class App
                 break;
         }
 
-        // Register SixLabors.ImageSharp decoders for various formats
-        AppLogger.Log("SixLabors.ImageSharp decoders registered for WebP, TIFF, and AVIF.");
-
         LogWindow = new DebugWindow();
         AppLogger.Log("Application starting up.");
 
