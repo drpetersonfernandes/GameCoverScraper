@@ -1,3 +1,6 @@
 /.idea/.idea.CSharp_GameCoverScraper/.idea/.gitignore
 /.idea/.idea.CSharp_GameCoverScraper/.idea/indexLayout.xml
 /.idea/.idea.CSharp_GameCoverScraper/.idea/vcs.xml
+!/GameCoverScraper/obj/
+!/GameCoverScraper/bin/
+!/GameCoverScraper/.idea/

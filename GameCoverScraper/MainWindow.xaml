@@ -7,7 +7,7 @@
                       xmlns:scrapingRomCover="clr-namespace:GameCoverScraper"
                       xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
                       mc:Ignorable="d"
-                      Title="Scraping ROM Cover"
+                      Title="GameCoverScraper"
                       MinWidth="900"
                       MinHeight="600"
                       WindowStartupLocation="CenterScreen">
@@ -171,14 +171,14 @@
                 <!-- <MenuItem Click="SetSearchEngine_Click" Header="ZylaLabs (Bing) API" Tag="ZylaLabs" IsCheckable="True" /> -->
                 <!-- <MenuItem Click="SetSearchEngine_Click" Header="Serp (Bing) API" Tag="Serp" IsCheckable="True" /> -->
                 <!-- <MenuItem Click="SetSearchEngine_Click" Header="SerpHouse (Bing) API" Tag="SerpHouse" IsCheckable="True" /> -->
-                <!-- <MenuItem Click="SetSearchEngine_Click" Header="Google API" Tag="Google" IsCheckable="True" /> -->
+                <MenuItem Click="SetSearchEngine_Click" Header="Google API" Tag="Google" IsCheckable="True" />
             </MenuItem>
             <MenuItem Header="Settings">
-                <!-- <MenuItem Click="ApiSettings_Click" Header="API Settings"> -->
-                <!--     <MenuItem.Icon> -->
-                <!--         <Image Source="pack://application:,,,/images/theme.png" Width="16" Height="16" /> -->
-                <!--     </MenuItem.Icon> -->
-                <!-- </MenuItem> -->
+                <MenuItem Click="ApiSettings_Click" Header="API Settings">
+                    <MenuItem.Icon>
+                        <Image Source="pack://application:,,,/images/theme.png" Width="16" Height="16" />
+                    </MenuItem.Icon>
+                </MenuItem>
                 <MenuItem Click="ToggleDebugWindow_Click" x:Name="ToggleDebugWindow" Header="Show/Hide Log Window" IsCheckable="True" />
                 <MenuItem x:Name="ToggleMameDescriptions" Header="Use MAME Descriptions" IsCheckable="True" Click="ToggleMameDescriptions_Click" />
             </MenuItem>
