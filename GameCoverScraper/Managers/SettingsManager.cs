@@ -33,12 +33,6 @@ public class SettingsManager
         "md", "smd", "gen", "32x", "sgg", "sg", "sc", "ms", "gg", "rom", "bin"
     };
 
-    public string ZylaLabsKey { get; set; } = string.Empty;
-    public string ZylaLabsEndpoint { get; set; } = DefaultZylaLabsEndpoint;
-    private const string DefaultZylaLabsEndpoint = "https://www.zylalabs.com/api/4672/bing+image+finder+api/5766/get+images";
-
-    public string SerpKey { get; set; } = string.Empty;
-    public string SerpHouseKey { get; set; } = string.Empty;
     public string GoogleKey { get; set; } = string.Empty;
     public string GoogleSearchEngineId { get; set; } = "d30e97188f5914611";
 
@@ -71,10 +65,6 @@ public class SettingsManager
                     .Elements("Extension")
                     .Select(static x => x.Value)
                     .ToList() ?? new List<string>();
-                ZylaLabsKey = root.Element("ZylaLabsKey")?.Value ?? string.Empty;
-                ZylaLabsEndpoint = root.Element("ZylaLabsEndpoint")?.Value ?? DefaultZylaLabsEndpoint;
-                SerpKey = root.Element("SerpKey")?.Value ?? string.Empty;
-                SerpHouseKey = root.Element("SerpHouseKey")?.Value ?? string.Empty;
                 GoogleKey = root.Element("GoogleKey")?.Value ?? string.Empty;
                 GoogleSearchEngineId = root.Element("GoogleSearchEngineId")?.Value ?? "d30e97188f5914611";
 
@@ -102,10 +92,6 @@ public class SettingsManager
                 BugReportApiKey = DefaultBugReportApiKey;
                 BugReportApiUrl = DefaultBugReportApiUrl;
                 SupportedExtensions = new List<string>(DefaultSupportedExtensions);
-                ZylaLabsKey = string.Empty;
-                ZylaLabsEndpoint = DefaultZylaLabsEndpoint;
-                SerpKey = string.Empty;
-                SerpHouseKey = string.Empty;
                 GoogleKey = string.Empty;
                 GoogleSearchEngineId = "d30e97188f5914611";
 
@@ -129,10 +115,6 @@ public class SettingsManager
                     new XElement("BugReportApiKey", BugReportApiKey),
                     new XElement("BugReportApiUrl", BugReportApiUrl),
                     new XElement("SupportedExtensions", SupportedExtensions.Select(static ext => new XElement("Extension", ext))),
-                    new XElement("ZylaLabsKey", ZylaLabsKey),
-                    new XElement("ZylaLabsEndpoint", ZylaLabsEndpoint),
-                    new XElement("SerpKey", SerpKey),
-                    new XElement("SerpHouseKey", SerpHouseKey),
                     new XElement("GoogleKey", GoogleKey),
                     new XElement("GoogleSearchEngineId", GoogleSearchEngineId)
                 )

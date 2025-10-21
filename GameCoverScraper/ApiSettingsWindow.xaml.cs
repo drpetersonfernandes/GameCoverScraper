@@ -44,7 +44,6 @@ public partial class ApiSettingsWindow
         DialogResult = false;
     }
 
-    // New method to handle hyperlink clicks
     private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
     {
         try
