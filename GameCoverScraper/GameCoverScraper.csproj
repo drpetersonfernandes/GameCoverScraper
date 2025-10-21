@@ -1,5 +1,4 @@
-﻿<!-- File: C:\Users\Peterson\Documents\Sincronizar\source\repos\CSharp_ScrapingRomCover\ScrapingRomCover\ScrapingRomCover.csproj -->
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <OutputType>WinExe</OutputType>

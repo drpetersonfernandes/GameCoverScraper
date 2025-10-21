@@ -43,7 +43,7 @@ You can easily add or remove supported extensions through the `settings.xml` fil
 
 1.  **Download the latest release** from the [Releases](https://github.com/drpetersonfernandes/GameCoverScraper/releases) page.
 2.  **Extract** the archive to a folder of your choice.
-3.  **Run** `ScrapingRomCover.exe`.
+3.  **Run** `GameCoverScraper.exe`.
 4.  **Configure API keys** (if using Google API search, see Setup section below).
 
 ### API Setup (Only for Google Custom Search API)
@@ -174,7 +174,7 @@ Access detailed logs via:
 -   **MessagePack** for efficient binary serialization.
 -   **MAME** team for the comprehensive arcade game database.
 -   **Microsoft.Web.WebView2** for embedding web content.
--   **AngleSharp** for HTML parsing (if web scraping features were to be fully implemented).
+-   **AngleSharp** for HTML parsing.
 -   **Polly** for transient fault handling and retries.
 
 ## 📞 Support
