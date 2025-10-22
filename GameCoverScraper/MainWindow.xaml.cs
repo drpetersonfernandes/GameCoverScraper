@@ -299,6 +299,9 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     private static async Task WaitForFileAccess(string filePath, int timeoutMilliseconds)
     {
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var currentDelay = 10; // Start with a small delay (e.g., 10 ms)
+        const int maxDelay = 200; // Cap the delay (e.g., 200ms)
+
         while (stopwatch.ElapsedMilliseconds < timeoutMilliseconds)
         {
             try
@@ -311,7 +314,9 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             catch (IOException)
             {
                 // File is locked, wait a bit before retrying.
-                await Task.Delay(100).ConfigureAwait(false);
+                await Task.Delay(currentDelay).ConfigureAwait(false);
+                // Exponentially increase the delay, up to maxDelay
+                currentDelay = Math.Min(currentDelay * 2, maxDelay);
             }
         }
 
