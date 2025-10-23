@@ -34,7 +34,8 @@ public partial class ApiSettingsWindow
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error saving settings: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show("There was an error saving the settings.\n\n" +
+                            "The developer will try to fix this.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             _ = BugReport.LogErrorAsync(ex, "Error saving API settings.");
         }
     }
@@ -60,8 +61,7 @@ public partial class ApiSettingsWindow
         {
             // Log the error and show a user-friendly message
             _ = BugReport.LogErrorAsync(ex, $"Failed to open hyperlink: {e.Uri.AbsoluteUri}");
-            MessageBox.Show("Could not open the link. Please copy and paste the URL into your browser.",
-                "Link Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("Could not open the link. Please copy and paste the URL into your browser.", "Link Error", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 }

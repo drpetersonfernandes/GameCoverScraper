@@ -35,7 +35,7 @@ You can easily add or remove supported extensions through the `settings.xml` fil
 ### Prerequisites
 
 -   Windows 10 or later
--   .NET 9.0 SDK (automatically installed if using the provided executable)
+-   **.NET 9.0 Runtime** (automatically installed if using the provided executable)
 -   **Microsoft Edge WebView2 Runtime**: Required for Bing and Google Web Image Search options. Most Windows 10/11 systems have this pre-installed. If not, it will be prompted for installation.
 -   (Optional) Valid API key for Google Custom Search API if you choose to use that search method.
 
@@ -169,7 +169,6 @@ Access detailed logs via:
 ## 🙏 Acknowledgments
 
 -   **MahApps.Metro** for the beautiful WPF UI framework.
--   **Magick.NET** for image processing capabilities (used for saving).
 -   **SixLabors.ImageSharp** for robust image loading and conversion (used for automatic PNG conversion).
 -   **MessagePack** for efficient binary serialization.
 -   **MAME** team for the comprehensive arcade game database.

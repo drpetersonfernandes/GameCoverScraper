@@ -13,7 +13,7 @@ using System.Text.RegularExpressions;
 using System.Windows.Documents;
 using System.Windows.Input;
 using GameCoverScraper.ApiProvider;
-using GameCoverScraper.Managers;
+using GameCoverScraper.Managers; // Ensure this is present
 using GameCoverScraper.models;
 using GameCoverScraper.Services;
 using Microsoft.Web.WebView2.Core;
@@ -113,11 +113,58 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
         AppLogger.Log("MainWindow initialized.");
 
-        // Load _machines and _mameLookup
-        _machines = MameManager.LoadFromDat();
-        _mameLookup = _machines
-            .GroupBy(static m => m.MachineName, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(static g => g.Key, static g => g.First().Description, StringComparer.OrdinalIgnoreCase);
+        // Initialize _machines and _mameLookup to empty collections by default
+        _machines = new List<MameManager>();
+        _mameLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Load _machines and _mameLookup with error handling
+        try
+        {
+            _machines = MameManager.LoadFromDat();
+            _mameLookup = _machines
+                .GroupBy(static m => m.MachineName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(static g => g.Key, static g => g.First().Description, StringComparer.OrdinalIgnoreCase);
+            AppLogger.Log($"Successfully loaded {_machines.Count} MAME entries.");
+        }
+        catch (MameDatNotFoundException ex)
+        {
+            AppLogger.Log($"MAME data file not found: {ex.Message}");
+            MessageBox.Show(
+                "The required data file 'mame.dat' was not found.\n\n" +
+                $"Please ensure the file is placed in the application directory: {AppDomain.CurrentDomain.BaseDirectory}\n\n" +
+                "MAME descriptions will not be available.",
+                "Missing MAME Data File", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        catch (MameDatCorruptError ex)
+        {
+            AppLogger.Log($"MAME data file corrupted: {ex.Message}");
+            MessageBox.Show(
+                "The data file 'mame.dat' appears to be corrupted or in an invalid format.\n\n" +
+                "Please verify the file integrity or obtain a fresh copy.\n\n" +
+                "MAME descriptions will not be available.",
+                "Corrupted MAME Data File", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        catch (IOException ex)
+        {
+            AppLogger.Log($"Error accessing MAME data file: {ex.Message}");
+            _ = BugReport.LogErrorAsync(ex, "Error accessing mame.dat file during startup.");
+            MessageBox.Show(
+                "Unable to access the 'mame.dat' file.\n\n" +
+                "Please ensure the file is not being used by another application and try again.\n\n" +
+                "MAME descriptions will not be available.",
+                "MAME File Access Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Log($"Unexpected error loading MAME data: {ex.Message}");
+            _ = BugReport.LogErrorAsync(ex, "Unexpected error loading mame.dat during startup.");
+            MessageBox.Show(
+                "An unexpected error occurred while loading the MAME game data.\n\n" +
+                "Please try restarting the application. If the problem persists, " +
+                "contact support with the error details.\n\n" +
+                "MAME descriptions will not be available.",
+                "MAME Data Load Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
 
         // Add a keyboard event handler
         LstMissingImages.PreviewKeyDown += LstMissingImages_PreviewKeyDown;
@@ -283,7 +330,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 _ = BugReport.LogErrorAsync(ex, $"Error in OnImageFileCreated for file {e.FullPath}");
                 await Dispatcher.InvokeAsync(() =>
                 {
-                    MessageBox.Show($"Error processing new image file '{e.Name}':\n\n{ex.Message}", "File Processing Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show($"Error processing new image file '{e.Name}'", "File Processing Error", MessageBoxButton.OK, MessageBoxImage.Error);
                     StatusMessageText = $"Error processing image for '{newFileNameWithoutExt}'.";
                 });
             }
@@ -292,7 +339,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         {
             AppLogger.Log($"Error in OnImageFileCreated: {ex.Message}");
             _ = BugReport.LogErrorAsync(ex, "Error in OnImageFileCreated");
-            MessageBox.Show($"Error processing new image file: {ex.Message}", "File Processing Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show("Error processing the new image file.", "File Processing Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -551,9 +598,10 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         }
         catch (Exception ex)
         {
-            MessageBox.Show("Unable to open the link: " + ex.Message);
+            MessageBox.Show("Unable to open the link\n\n" +
+                            "The developer will try to fix it.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
 
-            _ = BugReport.LogErrorAsync(ex, "Unable to open donation link.").ConfigureAwait(false);
+            _ = BugReport.LogErrorAsync(ex, "Unable to open donation link.");
         }
     }
 
@@ -593,8 +641,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
             if (string.IsNullOrEmpty(romFolderPath) || string.IsNullOrEmpty(imageFolderPath))
             {
-                MessageBox.Show("Please select both ROM and Image folders.", "Missing Information", MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                MessageBox.Show("Please select both ROM and Image folders.", "Missing Information", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -606,15 +653,13 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 // Validate that directories exist and are accessible
                 if (!Directory.Exists(romFolderPath))
                 {
-                    MessageBox.Show($"ROM folder does not exist: {romFolderPath}", "Invalid ROM Folder",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show($"ROM folder does not exist: {romFolderPath}", "Invalid ROM Folder", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
 
                 if (!Directory.Exists(imageFolderPath))
                 {
-                    MessageBox.Show($"Image folder does not exist: {imageFolderPath}", "Invalid Image Folder",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show($"Image folder does not exist: {imageFolderPath}", "Invalid Image Folder", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
 
@@ -639,20 +684,18 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 }
                 catch (DirectoryNotFoundException)
                 {
-                    MessageBox.Show($"ROM folder not found: {romFolderPath}", "Directory Not Found", MessageBoxButton.OK,
-                        MessageBoxImage.Error);
+                    MessageBox.Show($"ROM folder not found: {romFolderPath}", "Directory Not Found", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
                 catch (UnauthorizedAccessException)
                 {
-                    MessageBox.Show($"Access denied to ROM folder: {romFolderPath}", "Access Denied", MessageBoxButton.OK,
-                        MessageBoxImage.Error);
+                    MessageBox.Show($"Access denied to ROM folder: {romFolderPath}", "Access Denied", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Error accessing ROM folder: {ex.Message}", "Error", MessageBoxButton.OK,
-                        MessageBoxImage.Error);
+                    MessageBox.Show("Error accessing the ROM folder\n\n" +
+                                    "The developer will try to fix it.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                     _ = BugReport.LogErrorAsync(ex, "Error accessing ROM folder.").ConfigureAwait(false);
                     return;
                 }
@@ -664,7 +707,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             catch (Exception ex)
             {
                 StatusMessageText = "An error occurred while checking for images.";
-                MessageBox.Show($"Unexpected error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("An error occurred while checking for images.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 _ = BugReport.LogErrorAsync(ex, "Unexpected error in BtnCheckForMissingImages_Click.").ConfigureAwait(false);
             }
         }
@@ -932,17 +975,17 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             }
             catch (InvalidOperationException ex) when (ex.Message.Contains("API Key is not set"))
             {
-                await Dispatcher.InvokeAsync(() =>
+                await Dispatcher.InvokeAsync(static () =>
                 {
-                    MessageBox.Show($"{ex.Message}\n\nPlease configure your API keys in Settings > API Settings.", "Missing API Key", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show("Please configure your API keys in Settings > API Settings.", "Missing API Key", MessageBoxButton.OK, MessageBoxImage.Warning);
                 });
                 coverImageUrls = new List<ImageData>();
             }
-            catch (InvalidOperationException ex)
+            catch (InvalidOperationException)
             {
-                await Dispatcher.InvokeAsync(() =>
+                await Dispatcher.InvokeAsync(static () =>
                 {
-                    MessageBox.Show($"Error fetching images: {ex.Message}", "API Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show("Error fetching the images.", "API Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 });
                 coverImageUrls = new List<ImageData>();
             }
@@ -1016,9 +1059,9 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 await Dispatcher.InvokeAsync(() =>
                 {
                     StatusMessageText = "Error fetching images.";
-                    MessageBox.Show("There was an error fetching images: " + ex.Message, "Warning", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show("There was an error fetching the images", "Warning", MessageBoxButton.OK, MessageBoxImage.Error);
                 });
-                _ = BugReport.LogErrorAsync(ex, "Error fetching images in HandleApiSearch.").ConfigureAwait(false);
+                _ = BugReport.LogErrorAsync(ex, "Error fetching images in HandleApiSearch.");
             }
         }
         finally
@@ -1056,9 +1099,10 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             catch (InvalidOperationException ex) when (ex.Message.Contains("API Key is not set") && retryCount < maxRetries)
             {
                 retryCount++;
+
                 // Show API settings dialog
-                var result = MessageBox.Show($"{ex.Message}\n\nWould you like to configure your API keys now?",
-                    "Missing API Key", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                var result = MessageBox.Show($"API Key is not set.\n\n" +
+                                             $"Would you like to configure your API keys now?", "Missing API Key", MessageBoxButton.YesNo, MessageBoxImage.Warning);
 
                 if (result == MessageBoxResult.Yes)
                 {
@@ -1078,10 +1122,9 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                     return new List<ImageData>(); // User doesn't want to configure
                 }
             }
-            catch (InvalidOperationException ex)
+            catch (InvalidOperationException)
             {
-                MessageBox.Show($"Error fetching images: {ex.Message}", "API Error", MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                MessageBox.Show("Error fetching the images", "API Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return new List<ImageData>();
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -1110,8 +1153,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         }
         else
         {
-            MessageBox.Show("Please select a listed item to delete.", "Warning", MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+            MessageBox.Show("Please select a listed item to delete.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
@@ -1232,9 +1274,8 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         }
         catch (Exception ex)
         {
-            MessageBox.Show("There was an error saving the search engine: " + ex.Message, "Error", MessageBoxButton.OK,
-                MessageBoxImage.Error);
-            _ = BugReport.LogErrorAsync(ex, "Error saving search engine setting.").ConfigureAwait(false);
+            MessageBox.Show("There was an error saving the search engine settings.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            _ = BugReport.LogErrorAsync(ex, "Error saving search engine setting.");
         }
     }
 
@@ -1299,8 +1340,8 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error opening API settings: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            _ = BugReport.LogErrorAsync(ex, "Error opening API settings window.").ConfigureAwait(false);
+            MessageBox.Show("Error opening API settings.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            _ = BugReport.LogErrorAsync(ex, "Error opening API settings window.");
         }
     }
 

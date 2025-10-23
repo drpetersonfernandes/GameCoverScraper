@@ -36,10 +36,8 @@ public partial class MainWindow
             // Check if file already exists and prompt for overwrite
             if (File.Exists(localPath))
             {
-                var result = MessageBox.Show(
-                    $"The file '{_selectedGameFileName}.png' already exists. Do you want to overwrite it?",
-                    "File Exists",
-                    MessageBoxButton.YesNo, MessageBoxImage.Question);
+                var result = MessageBox.Show($"The file '{_selectedGameFileName}.png' already exists. Do you want to overwrite it?",
+                    "File Exists", MessageBoxButton.YesNo, MessageBoxImage.Question);
                 if (result != MessageBoxResult.Yes)
                 {
                     AppLogger.Log("User chose not to overwrite existing file.");
@@ -75,17 +73,15 @@ public partial class MainWindow
                 else
                 {
                     StatusMessageText = "Failed to download image.";
-                    MessageBox.Show($"Failed to download image. HTTP Status: {response.StatusCode}", "Download Error",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show($"Failed to download image. HTTP Status: {response.StatusCode}", "Download Error", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
             }
             catch (Exception ex)
             {
                 StatusMessageText = "Error saving image.";
-                MessageBox.Show("There was an error saving the image: " + ex.Message, "Warning", MessageBoxButton.OK,
-                    MessageBoxImage.Error);
-                _ = BugReport.LogErrorAsync(ex, "Error saving image.").ConfigureAwait(false);
+                _ = BugReport.LogErrorAsync(ex, "Error saving image.");
+                MessageBox.Show("There was an error saving the image.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
         }
@@ -130,8 +126,9 @@ public partial class MainWindow
         }
         catch (Exception ex)
         {
-            MessageBox.Show("General error: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            _ = BugReport.LogErrorAsync(ex, "General error during image conversion.").ConfigureAwait(false);
+            MessageBox.Show("There was an error saving the image.\n\n" +
+                            "The developer will try to fix this.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            _ = BugReport.LogErrorAsync(ex, "General error during image conversion.");
 
             return false;
         }
