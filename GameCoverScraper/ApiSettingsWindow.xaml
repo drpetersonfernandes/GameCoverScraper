@@ -2,7 +2,7 @@
                       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                       xmlns:controls="http://metro.mahapps.com/winfx/xaml/controls"
-                      Title="API Settings" Height="450" Width="650"
+                      Title="API Settings" Height="400" Width="600"
                       WindowStartupLocation="CenterScreen">
     <Grid Margin="20">
         <Grid.RowDefinitions>
@@ -21,11 +21,6 @@
         <StackPanel Grid.Row="1" Margin="0,0,0,15">
             <TextBlock TextWrapping="Wrap" Margin="0,0,0,5">
                 <Run>You need an API key for each service you want to use. Sign up on their websites to get your keys.</Run>
-            </TextBlock>
-            <TextBlock>
-                <Hyperlink NavigateUri="https://github.com/drpetersonfernandes/GameCoverScraper#api-keys" RequestNavigate="Hyperlink_RequestNavigate">
-                    Click here for detailed instructions on obtaining API keys
-                </Hyperlink>
             </TextBlock>
         </StackPanel>
 
