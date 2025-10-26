@@ -34,7 +34,7 @@ public class SettingsManager
     };
 
     public string GoogleKey { get; set; } = string.Empty;
-    public string GoogleSearchEngineId { get; set; } = "d30e97188f5914611";
+    public string GoogleSearchEngineId { get; private set; } = "d30e97188f5914611";
 
     public void LoadSettings()
     {
