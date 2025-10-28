@@ -18,7 +18,6 @@ A powerful Windows desktop application for automatically finding and downloading
 -   **🔄 Automatic Image Conversion**: Automatically converts downloaded images (JPG, BMP, GIF, TIFF, WebP, AVIF) to PNG format using SixLabors.ImageSharp.
 -   **📝 Detailed Logging**: Built-in log viewer for troubleshooting and `app.log`/`error.log` files.
 -   **🎵 Sound Feedback**: Optional audio feedback for user actions.
--   **🐛 Automated Bug Reporting**: Sends anonymous error reports to aid development (configurable).
 
 ## 📦 Supported File Types
 
