@@ -57,8 +57,7 @@ To use the **Google Custom Search API**:
     *   Go to [Google Cloud Console](https://console.cloud.google.com).
     *   Enable the "Custom Search JSON API".
     *   Create an API key.
-    *   Create a Custom Search Engine for image search (you'll need its ID).
-    *   Enter your Google API key into the `API Settings` window. The Search Engine ID is pre-configured by default but can be changed if needed.
+    *   Enter your Google API key into the `API Settings` window.
     *   Click "Save".
 
 ## 🎯 Usage Guide
@@ -82,7 +81,7 @@ To use the **Google Custom Search API**:
 
 4.  **Download Covers**
     -   **For API Search**: Click on the cover image you want from the suggestions. The image is automatically downloaded, converted to PNG (if necessary), and saved as `[gamename].png`.
-    -   **For Web Search**: Right-click on an image in the embedded browser and choose "Save image as..." or "Copy image" (then paste into an image editor and save as PNG). *Note: Automatic saving is not available for web searches due to browser security restrictions.*
+    -   **For Web Search**: Right-click on an image in the embedded browser and choose "Save image as...". Save it inside the Image Folder. *Note: Automatic saving is not available for web searches due to browser security restrictions.*
     -   The game is removed from the missing covers list once a corresponding PNG is detected in the image folder.
 
 ### Advanced Features
