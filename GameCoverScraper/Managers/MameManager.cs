@@ -25,8 +25,7 @@ public class MameManager
             const string contextMessage = "The file 'mame.dat' could not be found in the application folder.";
             AppLogger.Log(contextMessage); // Log the event
             _ = BugReport.LogErrorAsync(new MameDatNotFoundException(contextMessage), contextMessage); // Report as error
-            throw new MameDatNotFoundException(
-                $"The required data file 'mame.dat' was not found at: {datPath}");
+            throw new MameDatNotFoundException($"The required data file 'mame.dat' was not found at: {datPath}");
         }
 
         try

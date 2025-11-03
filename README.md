@@ -1,6 +1,13 @@
 # 🎮 GameCoverScraper
 
-A powerful Windows desktop application for automatically finding and downloading missing cover art for your retro gaming ROM collection. Supports both **Bing Web Image Search**, **Google Web Image Search**, and **Google Custom Search API** to fetch high-quality game cover images.
+A powerful Windows desktop application designed to help you automatically find and download missing cover art for your retro gaming ROM collection.
+It supports **Bing Web Image Search**, **Google Web Image Search**, and **Google Custom Search API** to fetch high-quality game cover images.
+
+![Main Window](screenshot.png)
+*Screenshot: Main Window*
+
+![Main Window](screenshot2.png)
+*Screenshot: Main Window*
 
 ## ✨ Features
 
@@ -10,7 +17,7 @@ A powerful Windows desktop application for automatically finding and downloading
 -   **🖼️ Multiple Sources**:
     *   **Bing Web Image Search**: Uses an embedded browser (WebView2) to display Bing image search results.
     *   **Google Web Image Search**: Uses an embedded browser (WebView2) to display Google image search results.
-    *   **Google Custom Search API**: Fetches image results directly via API (requires API key).
+    *   **Google Custom Search API**: Fetches image results directly via API (requires an API key).
 -   **⚡ Real-time Preview**: Thumbnail previews with configurable sizes (100-500px).
 -   **🎨 Customizable UI**: Light/Dark themes with 20+ accent colors.
 -   **📋 Missing Covers List**: Automatically generates a list of ROMs without cover art.
@@ -27,7 +34,7 @@ By default, the application supports:
 -   **Sega**: Genesis/Mega Drive (MD, SMD, GEN), 32X, Game Gear (GG), Master System (MS, GG, SGG, SC)
 -   **Other**: ROM, BIN
 
-You can easily add or remove supported extensions through the `settings.xml` file.
+You can add or remove supported extensions through the `settings.xml` file.
 
 ## 🚀 Getting Started
 
@@ -35,7 +42,7 @@ You can easily add or remove supported extensions through the `settings.xml` fil
 
 -   Windows 10 or later
 -   **.NET 9.0 Runtime** (automatically installed if using the provided executable)
--   **Microsoft Edge WebView2 Runtime**: Required for Bing and Google Web Image Search options. Most Windows 10/11 systems have this pre-installed. If not, it will be prompted for installation.
+-   **Microsoft Edge WebView2 Runtime**: Essential for Bing and Google Web Image Search. Most Windows 10/11 systems have this pre-installed. If missing, the application will prompt you with a direct download link.
 -   (Optional) Valid API key for Google Custom Search API if you choose to use that search method.
 
 ### Installation
@@ -89,7 +96,7 @@ To use the **Google Custom Search API**:
 Add extra search terms in the "Extra Query" field:
 -   `"box art"` - for box art specifically
 -   `"front cover"` - for front covers only
--   `"high resolution"` - for higher quality images
+-   `"game cover"` - for cover images
 
 #### Theme Customization
 Access through the menu:
@@ -112,6 +119,7 @@ Toggle the use of MAME descriptions for search queries:
 Access detailed logs for troubleshooting:
 -   **Settings > Show/Hide Log Window**.
 -   Log files are also saved as `app.log` and `error.log` in the application folder.
+-   `error_user.log` contains a simplified list of errors for user reference.
 
 ## 🔧 Configuration
 
@@ -141,11 +149,11 @@ All settings are stored in `settings.xml` in the application folder. This file i
 ### Common Issues
 
 **"API Key is not set" error (for Google API search)**
--   Ensure your Google API key is properly entered in `Settings > API Settings`.
+-   If prompted, ensure your Google API key is correctly entered in `Settings > API Settings`.
 -   Verify the key is active and has sufficient quota in your Google Cloud Console.
 
 **"WebView2 component is not ready" error**
--   Ensure the Microsoft Edge WebView2 Runtime is installed on your system. The application will usually prompt you if it's missing.
+-   If you encounter an error related to WebView2, the application will prompt you to download the Microsoft Edge WebView2 Runtime. Ensure it's installed and up-to-date. If the issue persists after installation, consider reinstalling the GameCoverScraper application.
 
 **No search results**
 -   Check your internet connection.
@@ -157,6 +165,9 @@ All settings are stored in `settings.xml` in the application folder. This file i
 -   Ensure the image folder has write permissions.
 -   Check if files already exist (you'll be prompted to overwrite).
 -   For web searches, remember that you need to manually save images from the embedded browser.
+
+**Missing or Corrupted Files**
+-   If you encounter errors about missing files (e.g., `mame.dat`) or persistent issues, try reinstalling the GameCoverScraper application to ensure all necessary files are present and uncorrupted.
 
 ### Logs
 Access detailed logs via:

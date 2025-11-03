@@ -13,12 +13,13 @@ using System.Text.RegularExpressions;
 using System.Windows.Documents;
 using System.Windows.Input;
 using GameCoverScraper.ApiProvider;
-using GameCoverScraper.Managers; // Ensure this is present
+using GameCoverScraper.Managers;
 using GameCoverScraper.models;
 using GameCoverScraper.Services;
 using Microsoft.Web.WebView2.Core;
 using SixLabors.ImageSharp;
 using Image = SixLabors.ImageSharp.Image;
+using System.Diagnostics;
 
 namespace GameCoverScraper;
 
@@ -129,11 +130,11 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         catch (MameDatNotFoundException ex)
         {
             AppLogger.Log($"MAME data file not found: {ex.Message}");
-            MessageBox.Show(
-                "The required data file 'mame.dat' was not found.\n\n" +
-                $"Please ensure the file is placed in the application directory: {AppDomain.CurrentDomain.BaseDirectory}\n\n" +
-                "MAME descriptions will not be available.",
-                "Missing MAME Data File", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("The required data file 'mame.dat' was not found.\n\n" +
+                            $"Please ensure the file is placed in the application directory: {AppDomain.CurrentDomain.BaseDirectory}\n\n" +
+                            "If you have not moved the application files, please try reinstalling the GameCoverScraper application.\n\n" +
+                            "MAME descriptions will not be available.", "Missing MAME Data File", MessageBoxButton.OK, MessageBoxImage.Warning);
+            _ = BugReport.LogErrorAsync(ex, "The file 'mame.dat' could not be found in the application folder.");
         }
         catch (MameDatCorruptError ex)
         {
@@ -345,7 +346,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
     private static async Task WaitForFileAccess(string filePath, int timeoutMilliseconds)
     {
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var stopwatch = Stopwatch.StartNew();
         var currentDelay = 10; // Start with a small delay (e.g., 10 ms)
         const int maxDelay = 200; // Cap the delay (e.g., 200ms)
 
@@ -442,8 +443,30 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         catch (Exception ex)
         {
             AppLogger.Log($"WebView2 initialization failed: {ex.Message}");
-            MessageBox.Show("Failed to initialize the web browser component (WebView2). Please ensure you have the WebView2 Runtime installed.", "WebView2 Error", MessageBoxButton.OK, MessageBoxImage.Error);
             _ = BugReport.LogErrorAsync(ex, "WebView2 initialization failed.");
+
+            // WEBVIEW2 DOWNLOAD LINK
+            var result = MessageBox.Show("The web browser component (Microsoft Edge WebView2 Runtime) is required but could not be loaded. " +
+                                         "This usually means it's not installed or is corrupted.\n\n" +
+                                         "Would you like to open the download page for the Microsoft Edge WebView2 Runtime now?", "WebView2 Error", MessageBoxButton.YesNo, MessageBoxImage.Error);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo("https://developer.microsoft.com/en-us/microsoft-edge/webview2/")
+                    {
+                        UseShellExecute = true
+                    });
+                    AppLogger.Log("Opened WebView2 Runtime download page for user.");
+                }
+                catch (Exception linkEx)
+                {
+                    AppLogger.Log($"Failed to open WebView2 download link: {linkEx.Message}");
+                    _ = BugReport.LogErrorAsync(linkEx, "Failed to open WebView2 download link.");
+                    MessageBox.Show("Could not open the download link. Please visit https://developer.microsoft.com/en-us/microsoft-edge/webview2/ manually.", "Link Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
         }
     }
 
@@ -592,8 +615,8 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         AppLogger.Log("Donate button clicked.");
         try
         {
-            System.Diagnostics.Process.Start(
-                new System.Diagnostics.ProcessStartInfo("https://www.purelogiccode.com/donate")
+            Process.Start(
+                new ProcessStartInfo("https://www.purelogiccode.com/donate")
                     { UseShellExecute = true });
         }
         catch (Exception ex)
