@@ -700,8 +700,8 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 try
                 {
                     romFiles = await Task.Run(() => supportedExtensions
-                        .SelectMany(ext => Directory.GetFiles(romFolderPath, $"*.{ext}"))
-                        .OrderBy(file => file)
+                        .SelectMany(ext => Directory.GetFiles(romFolderPath, $"*.{ext}", SearchOption.AllDirectories))
+                        .OrderBy(static file => file)
                         .ToArray()).ConfigureAwait(false);
                     AppLogger.Log($"Found {romFiles.Length} ROM files with supported extensions.");
                 }
