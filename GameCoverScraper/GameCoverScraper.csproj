@@ -48,6 +48,8 @@
         <Resource Include="images\logo.png" />
         <None Remove="images\keys.png" />
         <Resource Include="images\keys.png" />
+        <None Remove="images\settings.png" />
+        <Resource Include="images\settings.png" />
     </ItemGroup>
 
     <ItemGroup>

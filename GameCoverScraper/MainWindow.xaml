@@ -1,4 +1,4 @@
-﻿<controls:MetroWindow x:Class="GameCoverScraper.MainWindow"
+<controls:MetroWindow x:Class="GameCoverScraper.MainWindow"
                       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                       xmlns:controls="http://metro.mahapps.com/winfx/xaml/controls"
@@ -177,6 +177,11 @@
                 <MenuItem Click="ApiSettings_Click" Header="API Settings">
                     <MenuItem.Icon>
                         <Image Source="pack://application:,,,/images/keys.png" Width="16" Height="16" />
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Click="EditExtensions_Click" Header="Edit Supported Extensions...">
+                    <MenuItem.Icon>
+                        <Image Source="pack://application:,,,/images/settings.png" Width="16" Height="16" />
                     </MenuItem.Icon>
                 </MenuItem>
                 <MenuItem Click="ToggleDebugWindow_Click" x:Name="ToggleDebugWindow" Header="Show/Hide Log Window" IsCheckable="True" />

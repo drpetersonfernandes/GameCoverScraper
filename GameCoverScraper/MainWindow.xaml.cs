@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -757,6 +757,8 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         // Define all recognized image extensions that can serve as a cover
         string[] recognizedCoverExtensions = [".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tiff", ".tif", ".webp", ".avif"];
 
+        var missingItems = new List<string>();
+
         foreach (var file in romFiles)
         {
             var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(file);
@@ -776,9 +778,18 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             // If no cover was found after checking all recognized extensions, add to the missing list
             if (!coverFound)
             {
-                await Dispatcher.InvokeAsync(() => lstMissingImages.Items.Add(fileNameWithoutExtension));
+                missingItems.Add(fileNameWithoutExtension);
             }
         }
+
+        // Sort alphabetically and add to the ListBox
+        await Dispatcher.InvokeAsync(() =>
+        {
+            foreach (var item in missingItems.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+            {
+                lstMissingImages.Items.Add(item);
+            }
+        });
 
         await Dispatcher.InvokeAsync(() =>
         {
@@ -1366,6 +1377,15 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             MessageBox.Show("Error opening API settings.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             _ = BugReport.LogErrorAsync(ex, "Error opening API settings window.");
         }
+    }
+
+    private void EditExtensions_Click(object sender, RoutedEventArgs e)
+    {
+        var settingsWindow = new SettingsWindow(_settingsManager)
+        {
+            Owner = this
+        };
+        settingsWindow.ShowDialog();
     }
 
     private void ToggleMameDescriptions_Click(object sender, RoutedEventArgs e)

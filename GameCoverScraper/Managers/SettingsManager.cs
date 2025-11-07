@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.IO;
 using System.Xml.Linq;
 using GameCoverScraper.Services;
@@ -20,7 +20,7 @@ public class SettingsManager
     public string AccentColor { get; set; } = DefaultAccentColor;
     private const string DefaultAccentColor = "Blue";
     public bool UseMameDescriptions { get; set; }
-    public List<string> SupportedExtensions { get; private set; } = new();
+    public List<string> SupportedExtensions { get; set; } = new();
 
     public string BugReportApiKey { get; set; } = DefaultBugReportApiKey;
     private const string DefaultBugReportApiKey = "hjh7yu6t56tyr540o9u8767676r5674534453235264c75b6t7ggghgg76trf564e";
