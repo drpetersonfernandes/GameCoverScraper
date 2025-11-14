@@ -1,5 +1,6 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Web;
@@ -93,6 +94,14 @@ public class Google
         try
         {
             AppLogger.Log($"{logMessagePrefix} Response Status: {response.StatusCode}");
+
+            if (response.StatusCode == HttpStatusCode.TooManyRequests)
+            {
+                AppLogger.Log($"{logMessagePrefix} API rate limit exceeded (429).");
+                var rateLimitException = new HttpRequestException("Response status code does not indicate success: 429 (Too Many Requests).", null, HttpStatusCode.TooManyRequests);
+                _ = BugReport.LogErrorAsync(rateLimitException, $"HTTP error when calling {ProviderName} API: Rate limit exceeded.");
+                throw new InvalidOperationException($"{ProviderName} API rate limit has been exceeded. Please wait a moment before trying again.", rateLimitException);
+            }
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken);
             AppLogger.Log($"{logMessagePrefix} Response Body:\n{AppLogger.FormatJson(json)}");

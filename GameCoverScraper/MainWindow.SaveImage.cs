@@ -100,10 +100,10 @@ public partial class MainWindow
     /// <returns>True if conversion was successful, false otherwise.</returns>
     private static async Task<bool> ConvertStreamToPngAndSave(Stream inputStream, string outputPath)
     {
+        var tempOutputPath = outputPath + ".tmp" + Guid.NewGuid().ToString("N")[..8];
         try
         {
-            AppLogger.Log($"Converting stream to PNG and saving to '{outputPath}'.");
-
+            AppLogger.Log($"Converting stream to PNG and saving to '{outputPath}' via temp file '{tempOutputPath}'.");
 
             // Ensure the destination directory exists
             var destDir = Path.GetDirectoryName(outputPath);
@@ -115,12 +115,13 @@ public partial class MainWindow
             // ImageSharp automatically handles various formats and preserves properties
             using (var image = await Image.LoadAsync(inputStream).ConfigureAwait(false))
             {
-                // Save as PNG. ImageSharp handles aspect ratio, dimensions, and alpha channel by default.
-                await image.SaveAsPngAsync(outputPath, new PngEncoder()).ConfigureAwait(false);
+                // Save to temporary file first to avoid locking issues on the destination file
+                await image.SaveAsPngAsync(tempOutputPath, new PngEncoder()).ConfigureAwait(false);
             }
 
+            // Atomically move the temporary file to the final destination, overwriting if it exists.
+            File.Move(tempOutputPath, outputPath, true);
             AppLogger.Log($"Successfully saved image from stream to '{outputPath}'.");
-
 
             return true;
         }
@@ -131,6 +132,22 @@ public partial class MainWindow
             _ = BugReport.LogErrorAsync(ex, "General error during image conversion.");
 
             return false;
+        }
+        finally
+        {
+            // Ensure the temporary file is cleaned up in case of an error.
+            if (File.Exists(tempOutputPath))
+            {
+                try
+                {
+                    File.Delete(tempOutputPath);
+                }
+                catch (Exception cleanupEx)
+                {
+                    AppLogger.Log($"Failed to clean up temporary file '{tempOutputPath}': {cleanupEx.Message}");
+                    _ = BugReport.LogErrorAsync(cleanupEx, $"Failed to clean up temp file: {tempOutputPath}");
+                }
+            }
         }
     }
 }

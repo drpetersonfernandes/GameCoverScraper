@@ -38,33 +38,27 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
     public ObservableCollection<ImageData> PanelImages { get; set; }
 
-    private bool _isSearching;
-
     public bool IsSearching
     {
-        get => _isSearching;
+        get;
         set
         {
-            _isSearching = value;
+            field = value;
             OnPropertyChanged();
         }
     }
 
     private readonly SettingsManager _settingsManager;
 
-    private string _searchEngineDisplay = string.Empty;
-
     public string SearchEngineDisplay
     {
-        get => _searchEngineDisplay;
+        get;
         set
         {
-            _searchEngineDisplay = value;
+            field = value;
             OnPropertyChanged();
         }
-    }
-
-    private string _statusMessageText = "Ready";
+    } = string.Empty;
 
     public MainWindow(string? startupImageFolder = null, string? startupRomFolder = null) // Modified constructor
     {
@@ -497,10 +491,10 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
     public string StatusMessageText
     {
-        get => _statusMessageText;
+        get;
         set
         {
-            _statusMessageText = value;
+            field = value;
             OnPropertyChanged();
 
             // Update the status bar directly since it's not bound
@@ -513,7 +507,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 Dispatcher.Invoke(() => StatusMessage.Text = value);
             }
         }
-    }
+    } = "Ready";
 
     private void UpdateStatusBar()
     {
@@ -1009,17 +1003,17 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             }
             catch (InvalidOperationException ex) when (ex.Message.Contains("API Key is not set"))
             {
-                await Dispatcher.InvokeAsync(static () =>
+                await Dispatcher.InvokeAsync(() =>
                 {
                     MessageBox.Show("Please configure your API keys in Settings > API Settings.", "Missing API Key", MessageBoxButton.OK, MessageBoxImage.Warning);
                 });
                 coverImageUrls = new List<ImageData>();
             }
-            catch (InvalidOperationException)
+            catch (InvalidOperationException ex)
             {
-                await Dispatcher.InvokeAsync(static () =>
+                await Dispatcher.InvokeAsync(() =>
                 {
-                    MessageBox.Show("Error fetching the images.", "API Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show(ex.Message, "API Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 });
                 coverImageUrls = new List<ImageData>();
             }
@@ -1156,9 +1150,9 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                     return new List<ImageData>(); // User doesn't want to configure
                 }
             }
-            catch (InvalidOperationException)
+            catch (InvalidOperationException ex)
             {
-                MessageBox.Show("Error fetching the images", "API Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(ex.Message, "API Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return new List<ImageData>();
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

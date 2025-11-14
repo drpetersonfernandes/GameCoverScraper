@@ -12,30 +12,26 @@ public class ImageData : INotifyPropertyChanged
     public int ImageWidth { get; set; }
     public int ImageHeight { get; set; }
 
-    private int _thumbnailWidth;
-
     public int ThumbnailWidth
     {
-        get => _thumbnailWidth;
+        get;
         set
         {
-            if (_thumbnailWidth == value) return;
+            if (field == value) return;
 
-            _thumbnailWidth = value;
+            field = value;
             OnPropertyChanged();
         }
     }
 
-    private int _thumbnailHeight;
-
     public int ThumbnailHeight
     {
-        get => _thumbnailHeight;
+        get;
         set
         {
-            if (_thumbnailHeight == value) return;
+            if (field == value) return;
 
-            _thumbnailHeight = value;
+            field = value;
             OnPropertyChanged();
         }
     }
