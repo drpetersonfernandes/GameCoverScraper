@@ -14,7 +14,7 @@ public class SettingsManager
     public int ThumbnailSize { get; set; } = DefaultThumbnailSize;
     private const int DefaultThumbnailSize = 300;
     public string SearchEngine { get; set; } = DefaultSearchEngine;
-    private const string DefaultSearchEngine = "GoogleWeb";
+    private const string DefaultSearchEngine = "BingWeb";
     public string BaseTheme { get; set; } = DefaultBaseTheme;
     private const string DefaultBaseTheme = "Light";
     public string AccentColor { get; set; } = DefaultAccentColor;

@@ -168,9 +168,6 @@
             <MenuItem x:Name="SearchEngineMenu" Header="Select Search Engine">
                 <MenuItem Click="SetSearchEngine_Click" Header="Bing Web Search" Tag="BingWeb" IsCheckable="True" />
                 <MenuItem Click="SetSearchEngine_Click" Header="Google Web Image Search" Tag="GoogleWeb" IsCheckable="True" />
-                <!-- <MenuItem Click="SetSearchEngine_Click" Header="ZylaLabs (Bing) API" Tag="ZylaLabs" IsCheckable="True" /> -->
-                <!-- <MenuItem Click="SetSearchEngine_Click" Header="Serp (Bing) API" Tag="Serp" IsCheckable="True" /> -->
-                <!-- <MenuItem Click="SetSearchEngine_Click" Header="SerpHouse (Bing) API" Tag="SerpHouse" IsCheckable="True" /> -->
                 <MenuItem Click="SetSearchEngine_Click" Header="Google API" Tag="Google" IsCheckable="True" />
             </MenuItem>
             <MenuItem Header="Settings">
