@@ -20,11 +20,12 @@ It supports **Bing Web Image Search**, **Google Web Image Search**, and **Google
     *   **Google Custom Search API**: Fetches image results directly via API (requires an API key).
 -   **⚡ Real-time Preview**: Thumbnail previews with configurable sizes (100-500px).
 -   **🎨 Customizable UI**: Light/Dark themes with 20+ accent colors.
--   **📋 Missing Covers List**: Automatically generates a list of ROMs without cover art.
+-   **📋 Missing Covers List**: Automatically generates a list of ROMs without corresponding cover art (checks for PNG, JPG, BMP, GIF, TIFF, WebP, AVIF).
 -   **🔧 Flexible Configuration**: Support for custom file extensions and search queries.
--   **🔄 Automatic Image Conversion**: Automatically converts downloaded images (JPG, BMP, GIF, TIFF, WebP, AVIF) to PNG format using SixLabors.ImageSharp.
+-   **🔄 Automatic Image Conversion**: Automatically converts downloaded images (JPG, BMP, GIF, TIFF, WebP, AVIF) to PNG format using SixLabors.ImageSharp. Also, automatically converts newly saved images in the image folder to PNG.
 -   **📝 Detailed Logging**: Built-in log viewer for troubleshooting and `app.log`/`error.log` files.
 -   **🎵 Sound Feedback**: Optional audio feedback for user actions.
+-   **🚀 Command-line Arguments**: Start the application with pre-set ROM and Image folders for quick scanning.
 
 ## 📦 Supported File Types
 
@@ -32,16 +33,18 @@ By default, the application supports:
 -   **Archive formats**: ZIP, RAR, 7Z
 -   **Nintendo**: NES, SNES, Game Boy (GB, GBC, GBA)
 -   **Sega**: Genesis/Mega Drive (MD, SMD, GEN), 32X, Game Gear (GG), Master System (MS, GG, SGG, SC)
--   **Other**: ROM, BIN
+-   **Other**: ROM, BIN, CDI, CHD, ISO, 3DS, RVZ, NSP, XCI, WUA, WAD, CSO, NDS, LNK, BAT, EXE, ARC, D64, D71, D81, G64, LNX, NBZ, NIB, PRG, SDA, SFX, T64, TAP
 
-You can add or remove supported extensions through the `settings.xml` file.
+You can add or remove supported extensions through the `Settings > Edit Supported Extensions...` menu.
+
+**Recognized Cover Image Formats**: The application recognizes and converts `.jpg`, `.jpeg`, `.bmp`, `.gif`, `.tiff`, `.tif`, `.webp`, and `.avif` files to `.png` format.
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
 -   Windows 10 or later
--   **.NET 9.0 Runtime** (automatically installed if using the provided executable)
+-   **.NET 10.0 Runtime** (automatically installed if using the provided executable)
 -   **Microsoft Edge WebView2 Runtime**: Essential for Bing and Google Web Image Search. Most Windows 10/11 systems have this pre-installed. If missing, the application will prompt you with a direct download link.
 -   (Optional) Valid API key for Google Custom Search API if you choose to use that search method.
 
@@ -77,7 +80,7 @@ To use the **Google Custom Search API**:
 
 2.  **Scan for Missing Covers**
     -   Click "Check for Missing Images".
-    -   The app will list all ROMs without corresponding `.png`, `.jpg`, `.jpeg`, `.bmp`, `.gif`, `.tiff`, `.webp`, or `.avif` covers in your image folder.
+    -   The app will list all ROMs without a corresponding `.png`, `.jpg`, `.jpeg`, `.bmp`, `.gif`, `.tiff`, `.webp`, or `.avif` cover in your image folder.
 
 3.  **Find Covers**
     -   Select a game from the missing covers list.
@@ -87,7 +90,7 @@ To use the **Google Custom Search API**:
 
 4.  **Download Covers**
     -   **For API Search**: Click on the cover image you want from the suggestions. The image is automatically downloaded, converted to PNG (if necessary), and saved as `[gamename].png`.
-    -   **For Web Search**: Right-click on an image in the embedded browser and choose "Save image as...". Save it inside the Image Folder. *Note: Automatic saving is not available for web searches due to browser security restrictions.*
+    -   **For Web Search**: Right-click on an image in the embedded browser and choose "Save image as...". Save it inside the Image Folder. The application's `FileSystemWatcher` will then detect the new image, convert it to PNG if needed, and remove the game from the missing list. *Note: Automatic saving directly from the web view is not available due to browser security restrictions.*
     -   The game is removed from the missing covers list once a corresponding PNG is detected in the image folder.
 
 ### Advanced Features
@@ -121,6 +124,12 @@ Access detailed logs for troubleshooting:
 -   Log files are also saved as `app.log` and `error.log` in the application folder.
 -   `error_user.log` contains a simplified list of errors for user reference.
 
+#### Command-line Arguments
+You can launch `GameCoverScraper.exe` with command-line arguments to pre-fill the ROM and Image folders:
+-   `GameCoverScraper.exe "C:\Path\To\ImageFolder" "C:\Path\To\RomFolder"`
+-   If only one argument is provided, it will be treated as the Image Folder.
+-   If both are provided, the application will automatically trigger a scan for missing images on startup.
+
 ## 🔧 Configuration
 
 All settings are stored in `settings.xml` in the application folder. This file is managed by the application, but you can inspect it:
@@ -128,7 +137,7 @@ All settings are stored in `settings.xml` in the application folder. This file i
 ```xml
 <Settings>
     <ThumbnailSize>300</ThumbnailSize>
-    <SearchEngine>GoogleWeb</SearchEngine>
+    <SearchEngine>BingWeb</SearchEngine>
     <BaseTheme>Light</BaseTheme>
     <AccentColor>Blue</AccentColor>
     <UseMameDescriptions>true</UseMameDescriptions>
@@ -161,13 +170,16 @@ All settings are stored in `settings.xml` in the application folder. This file i
 -   Switch between "Bing Web Search", "Google Web Image Search", and "Google API" search engines.
 -   If using Google API, check your API key and Search Engine ID.
 
-**Images not saving**
+**Images not saving or converting automatically**
 -   Ensure the image folder has write permissions.
--   Check if files already exist (you'll be prompted to overwrite).
--   For web searches, remember that you need to manually save images from the embedded browser.
+-   For web searches, remember that you need to manually save images from the embedded browser. The application's `FileSystemWatcher` will then detect the new file, convert it to PNG if needed, and update the missing list.
+-   If a file already exists, you'll be prompted to overwrite it.
+-   Check the `app.log` for any errors related to file access or image conversion.
 
-**Missing or Corrupted Files**
--   If you encounter errors about missing files (e.g., `mame.dat`) or persistent issues, try reinstalling the GameCoverScraper application to ensure all necessary files are present and uncorrupted.
+**Missing or Corrupted MAME Data File (`mame.dat`)**
+-   If you encounter errors about a missing `mame.dat` file, ensure it is present in the same directory as `GameCoverScraper.exe`.
+-   If the file is present but errors about corruption occur, try obtaining a fresh copy of `mame.dat`.
+-   MAME descriptions will not be available if this file is missing or corrupted.
 
 ### Logs
 Access detailed logs via:
@@ -194,3 +206,4 @@ Access detailed logs via:
 ---
 
 Made with ❤️ by [Pure Logic Code](https://www.purelogiccode.com)
+```

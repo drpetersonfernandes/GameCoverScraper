@@ -886,9 +886,17 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         // --- Automatic copy to clipboard ---
         try
         {
-            Clipboard.SetText(selectedFile);
-            AppLogger.Log($"Automatically copied filename to clipboard: '{selectedFile}'");
-            StatusMessageText = $"Copied '{selectedFile}' to clipboard.";
+            if (!string.IsNullOrEmpty(selectedFile))
+            {
+                Clipboard.SetText(selectedFile);
+                AppLogger.Log($"Automatically copied filename to clipboard: '{selectedFile}'");
+                StatusMessageText = $"Copied '{selectedFile}' to clipboard.";
+            }
+            else
+            {
+                AppLogger.Log("Selected file name is null or empty, skipping clipboard copy.");
+                StatusMessageText = "Ready";
+            }
         }
         catch (Exception ex)
         {
