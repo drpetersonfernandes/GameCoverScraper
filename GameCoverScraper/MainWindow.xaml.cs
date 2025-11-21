@@ -512,8 +512,15 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             }
             else
             {
-                // Update the UI directly
-                StatusMessage.Text = value;
+                // Update the UI on the dispatcher thread
+                if (Dispatcher.CheckAccess())
+                {
+                    StatusMessage.Text = value;
+                }
+                else
+                {
+                    Dispatcher.Invoke(() => StatusMessage.Text = value);
+                }
             }
 
             OnPropertyChanged();
