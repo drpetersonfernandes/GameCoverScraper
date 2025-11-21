@@ -28,11 +28,12 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     private readonly List<MameManager> _machines;
     private readonly Dictionary<string, string> _mameLookup;
     private FileSystemWatcher? _imageFolderWatcher;
-
     private string? _imageFolderPath;
     private string? _selectedGameFileName;
     private CancellationTokenSource? _searchCts;
     private DispatcherTimer? _selectionDelayTimer;
+    private DispatcherTimer? _statusMessageTimer;
+    private string? _pendingStatusMessage;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -88,6 +89,14 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         };
         _selectionDelayTimer.Tick += SelectionDelayTimer_Tick;
         AppLogger.Log("Selection delay timer initialized.");
+
+        // Initialize the status message timer
+        _statusMessageTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(5)
+        };
+        _statusMessageTimer.Tick += StatusMessageTimer_Tick;
+        AppLogger.Log("Status message timer initialized.");
 
         _settingsManager = new SettingsManager();
         _settingsManager.LoadSettings();
@@ -886,17 +895,13 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         // --- Automatic copy to clipboard ---
         try
         {
-            if (!string.IsNullOrEmpty(selectedFile))
-            {
-                Clipboard.SetText(selectedFile);
-                AppLogger.Log($"Automatically copied filename to clipboard: '{selectedFile}'");
-                StatusMessageText = $"Copied '{selectedFile}' to clipboard.";
-            }
-            else
-            {
-                AppLogger.Log("Selected file name is null or empty, skipping clipboard copy.");
-                StatusMessageText = "Ready";
-            }
+            if (string.IsNullOrEmpty(selectedFile)) return;
+
+            Clipboard.SetText(selectedFile);
+            AppLogger.Log($"Automatically copied filename to clipboard: '{selectedFile}'");
+            _statusMessageTimer?.Stop();
+            _statusMessageTimer?.Start();
+            StatusMessageText = $"Automatically copied filename to clipboard: '{selectedFile}'";
         }
         catch (Exception ex)
         {
@@ -991,6 +996,28 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         catch (Exception ex)
         {
             _ = BugReport.LogErrorAsync(ex, "Unexpected error in SelectionDelayTimer_Tick.").ConfigureAwait(false);
+        }
+    }
+
+    private void StatusMessageTimer_Tick(object? sender, EventArgs e)
+    {
+        _statusMessageTimer?.Stop();
+        if (_pendingStatusMessage != null)
+        {
+            StatusMessageText = _pendingStatusMessage;
+            _pendingStatusMessage = null;
+        }
+    }
+
+    private void SetStatusMessageWithDelay(string message)
+    {
+        if (_statusMessageTimer?.IsEnabled == true)
+        {
+            _pendingStatusMessage = message;
+        }
+        else
+        {
+            StatusMessageText = message;
         }
     }
 
@@ -1415,6 +1442,8 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         _searchCts?.Dispose();
         _selectionDelayTimer?.Stop();
         _selectionDelayTimer = null;
+        _statusMessageTimer?.Stop();
+        _statusMessageTimer = null;
         _imageFolderWatcher?.Dispose();
         WebView?.Dispose();
         GC.SuppressFinalize(this);
