@@ -34,6 +34,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     private DispatcherTimer? _selectionDelayTimer;
     private DispatcherTimer? _statusMessageTimer;
     private string? _pendingStatusMessage;
+    private bool _isStatusMessageTimed;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -504,17 +505,18 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         set
         {
             field = value;
-            OnPropertyChanged();
-
-            // Update the status bar directly since it's not bound
-            if (Dispatcher.CheckAccess())
+            if (_isStatusMessageTimed)
             {
-                StatusMessage.Text = value;
+                // Queue the new message if a timed message is active
+                _pendingStatusMessage = value;
             }
             else
             {
-                Dispatcher.Invoke(() => StatusMessage.Text = value);
+                // Update the UI directly
+                StatusMessage.Text = value;
             }
+
+            OnPropertyChanged();
         }
     } = "Ready";
 
@@ -899,9 +901,11 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
             Clipboard.SetText(selectedFile);
             AppLogger.Log($"Automatically copied filename to clipboard: '{selectedFile}'");
-            _statusMessageTimer?.Stop();
-            _statusMessageTimer?.Start();
+
+            // Lock the status message for 5 seconds
+            _isStatusMessageTimed = true;
             StatusMessageText = $"Automatically copied filename to clipboard: '{selectedFile}'";
+            _statusMessageTimer?.Start();
         }
         catch (Exception ex)
         {
@@ -1002,22 +1006,15 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     private void StatusMessageTimer_Tick(object? sender, EventArgs e)
     {
         _statusMessageTimer?.Stop();
+
+        // Release the lock
+        _isStatusMessageTimed = false;
+
+        // Apply any pending message
         if (_pendingStatusMessage != null)
         {
-            StatusMessageText = _pendingStatusMessage;
+            StatusMessage.Text = _pendingStatusMessage;
             _pendingStatusMessage = null;
-        }
-    }
-
-    private void SetStatusMessageWithDelay(string message)
-    {
-        if (_statusMessageTimer?.IsEnabled == true)
-        {
-            _pendingStatusMessage = message;
-        }
-        else
-        {
-            StatusMessageText = message;
         }
     }
 
