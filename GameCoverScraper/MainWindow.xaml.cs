@@ -911,7 +911,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
             // Lock the status message for 5 seconds
             _isStatusMessageTimed = true;
-            StatusMessageText = $"Automatically copied filename to clipboard: '{selectedFile}'";
+            StatusMessage.Text = $"Automatically copied filename to clipboard: '{selectedFile}'";
             _statusMessageTimer?.Start();
         }
         catch (Exception ex)
