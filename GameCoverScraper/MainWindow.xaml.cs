@@ -17,8 +17,7 @@ using GameCoverScraper.Managers;
 using GameCoverScraper.models;
 using GameCoverScraper.Services;
 using Microsoft.Web.WebView2.Core;
-using SixLabors.ImageSharp;
-using Image = SixLabors.ImageSharp.Image;
+using ImageMagick;
 using System.Diagnostics;
 
 namespace GameCoverScraper;
@@ -831,12 +830,12 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 Directory.CreateDirectory(destDir);
             }
 
-            // ImageSharp automatically handles various formats and preserves properties
+            // Magick.NET automatically handles various formats and preserves properties
             // when loading and saving, unless explicit resizing/manipulation is applied.
-            using (var image = await Image.LoadAsync(sourcePath).ConfigureAwait(false))
+            using (var image = new MagickImage(sourcePath))
             {
-                // Save as PNG. ImageSharp handles aspect ratio, dimensions, and alpha channel by default.
-                await image.SaveAsPngAsync(destinationPath).ConfigureAwait(false);
+                // Save as PNG. Magick.NET handles aspect ratio, dimensions, and alpha channel by default.
+                await image.WriteAsync(destinationPath, MagickFormat.Png).ConfigureAwait(false);
             }
 
             AppLogger.Log($"Successfully converted '{sourcePath}' to '{destinationPath}'.");
@@ -848,10 +847,16 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             _ = BugReport.LogErrorAsync(ex, $"Source image file not found for conversion: {sourcePath}");
             return false;
         }
-        catch (UnknownImageFormatException ex)
+        catch (MagickMissingDelegateErrorException ex)
         {
             AppLogger.Log($"Unknown image format for conversion: '{sourcePath}'. Error: {ex.Message}");
-            _ = BugReport.LogErrorAsync(ex, $"Unknown image format for conversion: {sourcePath}");
+            _ = BugReport.LogErrorAsync(ex, $"Unknown image format (no codec) for conversion: {sourcePath}");
+            return false;
+        }
+        catch (MagickCorruptImageErrorException ex)
+        {
+            AppLogger.Log($"Corrupt image file for conversion: '{sourcePath}'. Error: {ex.Message}");
+            _ = BugReport.LogErrorAsync(ex, $"Corrupt image file for conversion: {sourcePath}");
             return false;
         }
         catch (Exception ex)

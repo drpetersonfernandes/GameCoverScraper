@@ -2,8 +2,7 @@ using System.IO;
 using System.Windows;
 using GameCoverScraper.models;
 using GameCoverScraper.Services;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Png;
+using ImageMagick;
 
 namespace GameCoverScraper;
 
@@ -112,11 +111,12 @@ public partial class MainWindow
                 Directory.CreateDirectory(destDir);
             }
 
-            // ImageSharp automatically handles various formats and preserves properties
-            using (var image = await Image.LoadAsync(inputStream).ConfigureAwait(false))
+            // Magick.NET automatically handles various formats and preserves properties
+            using (var image = new MagickImage(inputStream))
             {
-                // Save to temporary file first to avoid locking issues on the destination file
-                await image.SaveAsPngAsync(tempOutputPath, new PngEncoder()).ConfigureAwait(false);
+                // Set format to PNG and save to temporary file first to avoid locking issues
+                image.Format = MagickFormat.Png;
+                await image.WriteAsync(tempOutputPath).ConfigureAwait(false);
             }
 
             // Atomically move the temporary file to the final destination, overwriting if it exists.

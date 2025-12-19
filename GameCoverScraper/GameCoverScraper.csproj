@@ -8,8 +8,8 @@
         <UseWPF>true</UseWPF>
         <ApplicationIcon>images\scraper.ico</ApplicationIcon>
         <PackageIcon>icon2.png</PackageIcon>
-        <AssemblyVersion>1.3.1</AssemblyVersion>
-        <FileVersion>1.3.1</FileVersion>
+        <AssemblyVersion>1.3.2</AssemblyVersion>
+        <FileVersion>1.3.2</FileVersion>
         <LangVersion>14</LangVersion>
         <DebugType>embedded</DebugType>
         <DebugSymbols>true</DebugSymbols>
@@ -54,12 +54,11 @@
 
     <ItemGroup>
         <PackageReference Include="AngleSharp" Version="1.4.0" />
+        <PackageReference Include="Magick.NET-Q16-AnyCPU" Version="14.10.0" />
         <PackageReference Include="MahApps.Metro" Version="2.4.11" />
         <PackageReference Include="MessagePack" Version="3.1.4" />
-        <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3595.46" />
-        <PackageReference Include="Polly" Version="8.6.4" />
-        <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
-        <!-- NEW PACKAGES FOR IMAGE CONVERSION -->
+        <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3650.58" />
+        <PackageReference Include="Polly" Version="8.6.5" />
     </ItemGroup>
 
     <ItemGroup>
