@@ -161,8 +161,11 @@ All settings are stored in `settings.xml` in the application folder. This file i
 -   If prompted, ensure your Google API key is correctly entered in `Settings > API Settings`.
 -   Verify the key is active and has sufficient quota in your Google Cloud Console.
 
-**"WebView2 component is not ready" error**
--   If you encounter an error related to WebView2, the application will prompt you to download the Microsoft Edge WebView2 Runtime. Ensure it's installed and up-to-date. If the issue persists after installation, consider reinstalling the GameCoverScraper application.
+**"WebView2 Runtime Missing" or "WebView2 component is not ready" error**
+- On first launch, or if the component is missing, the application will prompt you to download the Microsoft Edge WebView2 Runtime. This is required for the "Bing Web Search" and "Google Web Image Search" features.
+- Follow the prompt to download and install the runtime from Microsoft's official website.
+- After installation, you may need to restart GameCoverScraper.
+- If the issue persists, ensure your Windows installation is up to date.
 
 **No search results**
 -   Check your internet connection.
@@ -206,4 +209,3 @@ Access detailed logs via:
 ---
 
 Made with ❤️ by [Pure Logic Code](https://www.purelogiccode.com)
-```

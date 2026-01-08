@@ -276,7 +276,21 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             {
                 // Wait for the file to be accessible to avoid read/write conflicts.
                 // This is crucial as files might be locked briefly after creation/download.
-                await WaitForFileAccess(e.FullPath, 10000); // Wait up to 10 seconds.
+                if (!await WaitForFileAccess(e.FullPath, 10000).ConfigureAwait(false))
+                {
+                    // File remained locked, log it and inform the user.
+                    var timeoutMessage = $"File '{e.Name}' remained locked and could not be processed. Please try saving it again.";
+                    AppLogger.Log(timeoutMessage);
+                    // We still want to report this, as it's an unexpected condition.
+                    _ = BugReport.LogErrorAsync(new TimeoutException($"File '{e.FullPath}' remained locked after 10000ms."), $"Error in OnImageFileCreated for file {e.FullPath}");
+
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        MessageBox.Show(timeoutMessage, "File Locked", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        StatusMessageText = $"Could not process '{e.Name}' (file was locked).";
+                    });
+                    return; // Abort processing this file.
+                }
 
                 var newFileExtension = Path.GetExtension(e.Name).ToLowerInvariant();
                 string[] sourceImageExtensions = [".jpg", ".jpeg", ".bmp", ".gif", ".tiff", ".tif", ".webp", ".avif"];
@@ -347,7 +361,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         }
     }
 
-    private static async Task WaitForFileAccess(string filePath, int timeoutMilliseconds)
+    private static async Task<bool> WaitForFileAccess(string filePath, int timeoutMilliseconds)
     {
         var stopwatch = Stopwatch.StartNew();
         var currentDelay = 10; // Start with a small delay (e.g., 10 ms)
@@ -360,7 +374,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 // Attempt to open the file with read access and no sharing.
                 // If this succeeds, the file is not locked for reading.
                 await using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.None);
-                return; // Success
+                return true; // Success
             }
             catch (IOException)
             {
@@ -371,7 +385,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             }
         }
 
-        throw new TimeoutException($"File '{filePath}' remained locked after {timeoutMilliseconds}ms.");
+        return false;
     }
 
     private void RemoveItemFromListByName(string fileName)
@@ -443,33 +457,51 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
             AppLogger.Log("WebView2 initialized successfully.");
         }
-        catch (Exception ex)
+        catch (WebView2RuntimeNotFoundException ex)
         {
-            AppLogger.Log($"WebView2 initialization failed: {ex.Message}");
-            _ = BugReport.LogErrorAsync(ex, "WebView2 initialization failed.");
+            AppLogger.Log($"WebView2 Runtime not found: {ex.Message}");
+            _ = BugReport.LogErrorAsync(ex, "WebView2 initialization failed: Runtime not found.");
 
-            // WEBVIEW2 DOWNLOAD LINK
-            var result = MessageBox.Show("The web browser component (Microsoft Edge WebView2 Runtime) is required but could not be loaded. " +
-                                         "This usually means it's not installed or is corrupted.\n\n" +
-                                         "Would you like to open the download page for the Microsoft Edge WebView2 Runtime now?", "WebView2 Error", MessageBoxButton.YesNo, MessageBoxImage.Error);
+            // The Evergreen Bootstrapper is a small installer that downloads and installs the latest compatible WebView2 Runtime.
+            const string webView2DownloadUrl = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
+
+            var result = MessageBox.Show(
+                "The web browser component (Microsoft Edge WebView2 Runtime) is required for web search functionality, but it's not installed on your system.\n\n" +
+                "Would you like to download it from Microsoft's official website now?",
+                "WebView2 Runtime Missing",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Error);
 
             if (result == MessageBoxResult.Yes)
             {
                 try
                 {
-                    Process.Start(new ProcessStartInfo("https://developer.microsoft.com/en-us/microsoft-edge/webview2/")
-                    {
-                        UseShellExecute = true
-                    });
-                    AppLogger.Log("Opened WebView2 Runtime download page for user.");
+                    Process.Start(new ProcessStartInfo(webView2DownloadUrl) { UseShellExecute = true });
+                    AppLogger.Log($"Opened WebView2 Runtime download URL for user: {webView2DownloadUrl}");
                 }
                 catch (Exception linkEx)
                 {
                     AppLogger.Log($"Failed to open WebView2 download link: {linkEx.Message}");
                     _ = BugReport.LogErrorAsync(linkEx, "Failed to open WebView2 download link.");
-                    MessageBox.Show("Could not open the download link. Please visit https://developer.microsoft.com/en-us/microsoft-edge/webview2/ manually.", "Link Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show(
+                        $"Could not open the download link automatically. Please visit the following URL in your browser:\n\n{webView2DownloadUrl}",
+                        "Link Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
                 }
             }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Log($"WebView2 initialization failed with an unexpected error: {ex.Message}");
+            _ = BugReport.LogErrorAsync(ex, "WebView2 initialization failed with an unexpected error.");
+
+            MessageBox.Show(
+                "An unexpected error occurred while initializing the web browser component (WebView2).\n\n" +
+                "Please try restarting the application. If the problem persists, ensure Microsoft Edge is up to date.",
+                "WebView2 Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
     }
 
