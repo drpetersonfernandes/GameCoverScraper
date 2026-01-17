@@ -460,17 +460,13 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         catch (WebView2RuntimeNotFoundException ex)
         {
             AppLogger.Log($"WebView2 Runtime not found: {ex.Message}");
-            _ = BugReport.LogErrorAsync(ex, "WebView2 initialization failed: Runtime not found.");
+            // _ = BugReport.LogErrorAsync(ex, "WebView2 initialization failed: Runtime not found.");
 
             // The Evergreen Bootstrapper is a small installer that downloads and installs the latest compatible WebView2 Runtime.
             const string webView2DownloadUrl = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
 
-            var result = MessageBox.Show(
-                "The web browser component (Microsoft Edge WebView2 Runtime) is required for web search functionality, but it's not installed on your system.\n\n" +
-                "Would you like to download it from Microsoft's official website now?",
-                "WebView2 Runtime Missing",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Error);
+            var result = MessageBox.Show("The web browser component (Microsoft Edge WebView2 Runtime) is required for web search functionality, but it's not installed on your system.\n\n" +
+                                         "Would you like to download it from Microsoft's official website now?", "WebView2 Runtime Missing", MessageBoxButton.YesNo, MessageBoxImage.Error);
 
             if (result == MessageBoxResult.Yes)
             {
@@ -483,11 +479,8 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 {
                     AppLogger.Log($"Failed to open WebView2 download link: {linkEx.Message}");
                     _ = BugReport.LogErrorAsync(linkEx, "Failed to open WebView2 download link.");
-                    MessageBox.Show(
-                        $"Could not open the download link automatically. Please visit the following URL in your browser:\n\n{webView2DownloadUrl}",
-                        "Link Error",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Warning);
+                    MessageBox.Show($"Could not open the download link automatically. Please visit the following URL in your browser:\n\n{webView2DownloadUrl}",
+                        "Link Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
         }
