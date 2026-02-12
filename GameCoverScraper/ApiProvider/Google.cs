@@ -95,12 +95,27 @@ public class Google
         {
             AppLogger.Log($"{logMessagePrefix} Response Status: {response.StatusCode}");
 
-            if (response.StatusCode == HttpStatusCode.TooManyRequests)
+            switch (response.StatusCode)
             {
-                AppLogger.Log($"{logMessagePrefix} API rate limit exceeded (429).");
-                var rateLimitException = new HttpRequestException("Response status code does not indicate success: 429 (Too Many Requests).", null, HttpStatusCode.TooManyRequests);
-                _ = BugReport.LogErrorAsync(rateLimitException, $"HTTP error when calling {ProviderName} API: Rate limit exceeded.");
-                throw new InvalidOperationException($"{ProviderName} API rate limit has been exceeded. Please wait a moment before trying again.", rateLimitException);
+                case HttpStatusCode.TooManyRequests:
+                {
+                    AppLogger.Log($"{logMessagePrefix} API rate limit exceeded (429).");
+                    var rateLimitException = new HttpRequestException("Response status code does not indicate success: 429 (Too Many Requests).", null, HttpStatusCode.TooManyRequests);
+                    _ = BugReport.LogErrorAsync(rateLimitException, $"HTTP error when calling {ProviderName} API: Rate limit exceeded.");
+                    throw new InvalidOperationException($"{ProviderName} API rate limit has been exceeded. Please wait a moment before trying again.", rateLimitException);
+                }
+                case HttpStatusCode.Forbidden:
+                {
+                    AppLogger.Log($"{logMessagePrefix} Access Forbidden (403). Check API Key and API Permissions.");
+                    var forbiddenEx = new HttpRequestException("403 (Forbidden)", null, HttpStatusCode.Forbidden);
+                    _ = BugReport.LogErrorAsync(forbiddenEx, $"{ProviderName} API: Access Forbidden.");
+
+                    throw new InvalidOperationException(
+                        $"{ProviderName} API Access Forbidden (403).\n\n" +
+                        "This usually means:\n" +
+                        "1. Your API Key is incorrect.\n" +
+                        "2. Your daily free limit has been reached.", forbiddenEx);
+                }
             }
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken);
