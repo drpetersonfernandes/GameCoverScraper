@@ -102,6 +102,7 @@ public partial class DebugWindow
         catch (Exception ex)
         {
             AppLogger.Log($"Failed to copy log to clipboard: {ex.Message}");
+            _ = BugReport.LogErrorAsync(ex, "Failed to copy entire log to clipboard.");
         }
     }
 
@@ -126,6 +127,7 @@ public partial class DebugWindow
         catch (Exception ex)
         {
             AppLogger.Log($"Failed to copy selection to clipboard: {ex.Message}");
+            _ = BugReport.LogErrorAsync(ex, "Failed to copy selected log text to clipboard.");
         }
     }
 

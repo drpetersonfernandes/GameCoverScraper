@@ -144,6 +144,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         catch (MameDatCorruptError ex)
         {
             AppLogger.Log($"MAME data file corrupted: {ex.Message}");
+            _ = BugReport.LogErrorAsync(ex, "MAME data file 'mame.dat' is corrupted or in an invalid format.");
             MessageBox.Show(
                 "The data file 'mame.dat' appears to be corrupted or in an invalid format.\n\n" +
                 "Please verify the file integrity or obtain a fresh copy.\n\n" +
@@ -326,7 +327,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                             catch (Exception deleteEx)
                             {
                                 AppLogger.Log($"Could not delete original file '{e.FullPath}': {deleteEx.Message}");
-                                // Log but continue, as the main goal (PNG creation) was successful.
+                                _ = BugReport.LogErrorAsync(deleteEx, $"Failed to delete original file after conversion: {e.FullPath}");
                             }
 
                             // Remove from the list since we now have the PNG
@@ -465,6 +466,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 catch (Exception ex)
                 {
                     AppLogger.Log($"Warning: Could not create WebView2 user data folder: {ex.Message}. Falling back to default.");
+                    _ = BugReport.LogErrorAsync(ex, "Failed to create WebView2 user data folder.");
                     userDataFolder = null; // Fallback to default if we can't create the folder
                 }
 
@@ -484,7 +486,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             catch (WebView2RuntimeNotFoundException ex)
             {
                 AppLogger.Log($"WebView2 Runtime not found: {ex.Message}");
-                // _ = BugReport.LogErrorAsync(ex, "WebView2 initialization failed: Runtime not found.");
+                _ = BugReport.LogErrorAsync(ex, "WebView2 initialization failed: Runtime not found.");
 
                 // The Evergreen Bootstrapper is a small installer that downloads and installs the latest compatible WebView2 Runtime.
                 const string webView2DownloadUrl = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
@@ -785,13 +787,15 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                         .ToArray()).ConfigureAwait(false);
                     AppLogger.Log($"Found {romFiles.Length} ROM files with supported extensions.");
                 }
-                catch (DirectoryNotFoundException)
+                catch (DirectoryNotFoundException ex)
                 {
+                    _ = BugReport.LogErrorAsync(ex, $"ROM folder not found: {romFolderPath}");
                     MessageBox.Show($"ROM folder not found: {romFolderPath}", "Directory Not Found", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
-                catch (UnauthorizedAccessException)
+                catch (UnauthorizedAccessException ex)
                 {
+                    _ = BugReport.LogErrorAsync(ex, $"Access denied to ROM folder: {romFolderPath}");
                     MessageBox.Show($"Access denied to ROM folder: {romFolderPath}", "Access Denied", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
@@ -988,6 +992,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         catch (Exception ex)
         {
             AppLogger.Log($"Failed to automatically copy filename to clipboard: {ex.Message}");
+            _ = BugReport.LogErrorAsync(ex, "Failed to automatically copy filename to clipboard.");
         }
 
         // Clear UI immediately to prevent showing stale data
@@ -1113,6 +1118,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             }
             catch (InvalidOperationException ex) when (ex.Message.Contains("API Key is not set"))
             {
+                _ = BugReport.LogErrorAsync(ex, "API Key is not set during image search.");
                 await Dispatcher.InvokeAsync(static () =>
                 {
                     MessageBox.Show("Please configure your API keys in Settings > API Settings.", "Missing API Key", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -1121,6 +1127,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             }
             catch (InvalidOperationException ex)
             {
+                _ = BugReport.LogErrorAsync(ex, "API error during image search.");
                 await Dispatcher.InvokeAsync(() =>
                 {
                     MessageBox.Show(ex.Message, "API Error", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -1185,9 +1192,10 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 });
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
             AppLogger.Log("Image fetch operation was canceled.");
+            _ = BugReport.LogErrorAsync(ex, "Image fetch operation was canceled in HandleApiSearch.");
             await Dispatcher.InvokeAsync(() => { StatusMessageText = "Search canceled."; });
         }
         catch (Exception ex)
@@ -1237,6 +1245,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             catch (InvalidOperationException ex) when (ex.Message.Contains("API Key is not set") && retryCount < maxRetries)
             {
                 retryCount++;
+                _ = BugReport.LogErrorAsync(ex, "API Key is not set during FetchImagesWithRetry.");
 
                 // Show API settings dialog
                 var result = MessageBox.Show($"API Key is not set.\n\n" +
@@ -1262,6 +1271,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             }
             catch (InvalidOperationException ex)
             {
+                _ = BugReport.LogErrorAsync(ex, "API error in FetchImagesWithRetry.");
                 MessageBox.Show(ex.Message, "API Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return new List<ImageData>();
             }

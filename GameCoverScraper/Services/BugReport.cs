@@ -42,7 +42,7 @@ public static class BugReport
 
         if (ex == null)
         {
-            ex = new Exception("Exception is null");
+            ex = new InvalidOperationException("LogErrorAsync was called with a null exception.");
         }
 
         fullErrorMessage += $"Exception Type: {ex.GetType().Name}\n";
@@ -158,11 +158,22 @@ public static class BugReport
                 await Console.Error.WriteLineAsync("HTTP Request timed out when sending log to API.");
                 return false;
             }
-            catch (Exception ex)
+            catch (JsonException jsonEx)
             {
-                // Catch any other unexpected exceptions during the API call process
                 await Console.Error.WriteLineAsync(
-                    $"An unexpected error occurred when sending log to API: {ex.Message}");
+                    $"JSON serialization error when sending log to API: {jsonEx.Message}");
+                return false;
+            }
+            catch (IOException ioEx)
+            {
+                await Console.Error.WriteLineAsync(
+                    $"I/O error when sending log to API: {ioEx.Message}");
+                return false;
+            }
+            catch (InvalidOperationException opEx)
+            {
+                await Console.Error.WriteLineAsync(
+                    $"Invalid operation when sending log to API: {opEx.Message}");
                 return false;
             }
         }

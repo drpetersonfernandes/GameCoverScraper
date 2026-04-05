@@ -148,6 +148,7 @@ public class Google
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             AppLogger.Log($"{logMessagePrefix} request was cancelled.");
+            _ = BugReport.LogErrorAsync(new OperationCanceledException($"{ProviderName} API request was cancelled."), $"{logMessagePrefix} request cancellation.");
             throw; // Re-throw cancellation
         }
     }

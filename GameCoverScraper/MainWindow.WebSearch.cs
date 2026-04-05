@@ -1,4 +1,3 @@
-using System.Web;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -21,8 +20,7 @@ public partial class MainWindow
             return;
         }
 
-        var bingUrl = $"https://www.bing.com/images/search?q={HttpUtility.UrlEncode(searchQuery)}";
-        AppLogger.Log($"Navigating WebView2 to Bing Images: {bingUrl}");
+        var bingUrl = WebSearchService.BuildBingSearchUrl(searchQuery);
 
         await Dispatcher.InvokeAsync(() =>
         {
@@ -53,9 +51,7 @@ public partial class MainWindow
             return;
         }
 
-        // Google Images search URL
-        var googleUrl = $"https://www.google.com/search?tbm=isch&q={HttpUtility.UrlEncode(searchQuery)}";
-        AppLogger.Log($"Navigating WebView2 to Google Images: {googleUrl}");
+        var googleUrl = WebSearchService.BuildGoogleSearchUrl(searchQuery);
 
         await Dispatcher.InvokeAsync(() =>
         {

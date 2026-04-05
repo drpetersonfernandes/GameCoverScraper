@@ -8,6 +8,8 @@ namespace GameCoverScraper;
 public partial class App
 {
     public static DebugWindow? LogWindow { get; private set; }
+    public static ImageSaveService ImageSaveService { get; } = new();
+    public static WebSearchService WebSearchService { get; } = new();
 
     private static string? StartupImageFolder { get; set; }
     private static string? StartupRomFolder { get; set; }
