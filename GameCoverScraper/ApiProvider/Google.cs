@@ -37,7 +37,7 @@ public class Google
 
     private static string BuildRequestUrl(string searchQuery, SettingsManager settingsManager)
     {
-        var encodedSearchQuery = HttpUtility.UrlEncode(searchQuery?.Trim() ?? "");
+        var encodedSearchQuery = HttpUtility.UrlEncode(searchQuery.Trim());
         if (string.IsNullOrEmpty(encodedSearchQuery))
         {
             throw new ArgumentException("Search query cannot be empty", nameof(searchQuery));
@@ -62,12 +62,12 @@ public class Google
         return JsonSerializer.Deserialize<GoogleSearchResult>(json, jsonOptions);
     }
 
-    private List<ImageData> MapToImageData(object? deserializedResponse, SettingsManager settingsManager)
+    private static List<ImageData> MapToImageData(object? deserializedResponse)
     {
         var searchResults = deserializedResponse as GoogleSearchResult;
         if (searchResults?.Items != null)
         {
-            return searchResults.Items.Select(item => new ImageData
+            return searchResults.Items.Select(static item => new ImageData
             {
                 ImagePath = item.Link,
                 ImageName = FormatImageName(item.Title),
@@ -124,7 +124,7 @@ public class Google
             response.EnsureSuccessStatusCode();
 
             var deserializedResponse = DeserializeResponse(json, LogJsonSerializerOptions);
-            var imageDataList = MapToImageData(deserializedResponse, settingsManager);
+            var imageDataList = MapToImageData(deserializedResponse);
 
             AppLogger.Log($"{logMessagePrefix} Successfully parsed {imageDataList.Count} images.");
             return imageDataList;

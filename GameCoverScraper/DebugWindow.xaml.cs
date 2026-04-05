@@ -60,24 +60,27 @@ public partial class DebugWindow
 
     private void LogMessages_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        // When a new log is added to the source collection...
-        if (e.Action == NotifyCollectionChangedAction.Add && e.NewItems is not null)
+        switch (e.Action)
         {
-            var newText = new StringBuilder();
-            foreach (LogEntry item in e.NewItems)
+            // When a new log is added to the source collection...
+            case NotifyCollectionChangedAction.Add when e.NewItems is not null:
             {
-                newText.AppendLine(item.Message);
-            }
+                var newText = new StringBuilder();
+                foreach (LogEntry item in e.NewItems)
+                {
+                    newText.AppendLine(item.Message);
+                }
 
-            // ...append it to our TextBox.
-            LogTextBox.AppendText(newText.ToString());
-            LogTextBox.ScrollToEnd();
-        }
-        // When the source collection is cleared...
-        else if (e.Action == NotifyCollectionChangedAction.Reset)
-        {
-            // ...clear our TextBox.
-            LogTextBox.Clear();
+                // ...append it to our TextBox.
+                LogTextBox.AppendText(newText.ToString());
+                LogTextBox.ScrollToEnd();
+                break;
+            }
+            // When the source collection is cleared...
+            case NotifyCollectionChangedAction.Reset:
+                // ...clear our TextBox.
+                LogTextBox.Clear();
+                break;
         }
     }
 

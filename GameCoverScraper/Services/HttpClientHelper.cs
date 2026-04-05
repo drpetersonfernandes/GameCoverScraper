@@ -31,7 +31,7 @@ public static class HttpClientHelper
     {
         if (HttpClient.IsValueCreated)
         {
-            HttpClient.Value?.Dispose();
+            HttpClient.Value.Dispose();
         }
     }
 }

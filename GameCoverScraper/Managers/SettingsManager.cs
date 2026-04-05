@@ -7,8 +7,6 @@ namespace GameCoverScraper.Managers;
 
 public class SettingsManager
 {
-    private static readonly Lock Lock = new();
-
     private static readonly object SettingsLock = new();
     private static readonly string SettingsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings.xml");
     public int ThumbnailSize { get; set; } = DefaultThumbnailSize;
@@ -27,11 +25,11 @@ public class SettingsManager
     public string BugReportApiUrl { get; set; } = DefaultBugReportApiUrl;
     private const string DefaultBugReportApiUrl = "https://www.purelogiccode.com/bugreport/api/send-bug-report";
 
-    private static readonly List<string> DefaultSupportedExtensions = new()
-    {
+    private static readonly List<string> DefaultSupportedExtensions =
+    [
         "zip", "rar", "7z", "gba", "gb", "gbc", "nes", "snes", "sfc", "smc",
         "md", "smd", "gen", "32x", "sgg", "sg", "sc", "ms", "gg", "rom", "bin"
-    };
+    ];
 
     public string GoogleKey { get; set; } = string.Empty;
     public string GoogleSearchEngineId { get; private set; } = "d30e97188f5914611";

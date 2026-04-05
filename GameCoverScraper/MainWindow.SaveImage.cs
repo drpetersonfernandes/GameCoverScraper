@@ -73,7 +73,6 @@ public partial class MainWindow
                 {
                     StatusMessageText = "Failed to download image.";
                     MessageBox.Show($"Failed to download image. HTTP Status: {response.StatusCode}", "Download Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
                 }
             }
             catch (Exception ex)
@@ -81,7 +80,6 @@ public partial class MainWindow
                 StatusMessageText = "Error saving image.";
                 _ = BugReport.LogErrorAsync(ex, "Error saving image.");
                 MessageBox.Show("There was an error saving the image.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
             }
         }
         catch (Exception ex)

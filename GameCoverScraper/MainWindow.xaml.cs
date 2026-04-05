@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using ControlzEx.Theming;
@@ -34,6 +35,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     private DispatcherTimer? _statusMessageTimer;
     private string? _pendingStatusMessage;
     private bool _isStatusMessageTimed;
+    private bool _isWebViewInitializing;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -70,7 +72,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         TxtExtraQuery.Text = "";
 
         // Initialize the status bar
-        PanelImages.CollectionChanged += (s, e) =>
+        PanelImages.CollectionChanged += (_, _) =>
         {
             if (Dispatcher.CheckAccess())
             {
@@ -106,7 +108,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         UpdateMenuItems();
 
         Closing += MainWindow_Closing;
-        Closed += (s, e) => Dispose();
+        Closed += (_, _) => Dispose();
 
         // Subscribe to the debug window hidden event if it exists
         if (App.LogWindow != null)
@@ -178,7 +180,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
         ToggleMameDescriptions.IsChecked = _settingsManager.UseMameDescriptions;
 
-        InitializeWebViewAsync();
+        Loaded += (_, _) => InitializeWebViewAsync();
 
         // --- Handle startup arguments ---
         if (!string.IsNullOrEmpty(startupImageFolder))
@@ -429,10 +431,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 IsSearching = false;
                 StatusMessageText = "All covers found!";
                 _selectedGameFileName = null;
-                if (WebView?.CoreWebView2 != null)
-                {
-                    WebView.CoreWebView2.Navigate("about:blank");
-                }
+                WebView?.CoreWebView2?.Navigate("about:blank");
             }
         }
 
@@ -444,57 +443,102 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     {
         try
         {
-            AppLogger.Log("Initializing WebView2...");
-            await WebView.EnsureCoreWebView2Async(null);
-            WebView.NavigationCompleted += WebView_NavigationCompleted;
+            if (_isWebViewInitializing || WebView.CoreWebView2 != null) return;
 
-            // Ensure right-click menus are enabled (this is the default, but good to be explicit)
-            if (WebView.CoreWebView2 != null)
+            _isWebViewInitializing = true;
+
+            try
             {
-                WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
-                AppLogger.Log("WebView2 default context menus enabled.");
-            }
+                AppLogger.Log("Initializing WebView2...");
 
-            AppLogger.Log("WebView2 initialized successfully.");
-        }
-        catch (WebView2RuntimeNotFoundException ex)
-        {
-            AppLogger.Log($"WebView2 Runtime not found: {ex.Message}");
-            // _ = BugReport.LogErrorAsync(ex, "WebView2 initialization failed: Runtime not found.");
+                // Use LocalAppData for the user data folder to avoid permission issues
+                // and potential "Operation aborted" errors if the default folder is locked or inaccessible.
+                var userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GameCoverScraper", "WebView2Data");
 
-            // The Evergreen Bootstrapper is a small installer that downloads and installs the latest compatible WebView2 Runtime.
-            const string webView2DownloadUrl = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
-
-            var result = MessageBox.Show("The web browser component (Microsoft Edge WebView2 Runtime) is required for web search functionality, but it's not installed on your system.\n\n" +
-                                         "Would you like to download it from Microsoft's official website now?", "WebView2 Runtime Missing", MessageBoxButton.YesNo, MessageBoxImage.Error);
-
-            if (result == MessageBoxResult.Yes)
-            {
                 try
                 {
-                    Process.Start(new ProcessStartInfo(webView2DownloadUrl) { UseShellExecute = true });
-                    AppLogger.Log($"Opened WebView2 Runtime download URL for user: {webView2DownloadUrl}");
+                    if (!Directory.Exists(userDataFolder))
+                    {
+                        Directory.CreateDirectory(userDataFolder);
+                    }
                 }
-                catch (Exception linkEx)
+                catch (Exception ex)
                 {
-                    AppLogger.Log($"Failed to open WebView2 download link: {linkEx.Message}");
-                    _ = BugReport.LogErrorAsync(linkEx, "Failed to open WebView2 download link.");
-                    MessageBox.Show($"Could not open the download link automatically. Please visit the following URL in your browser:\n\n{webView2DownloadUrl}",
-                        "Link Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    AppLogger.Log($"Warning: Could not create WebView2 user data folder: {ex.Message}. Falling back to default.");
+                    userDataFolder = null; // Fallback to default if we can't create the folder
                 }
+
+                var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
+                await WebView.EnsureCoreWebView2Async(env);
+                WebView.NavigationCompleted += WebView_NavigationCompleted;
+
+                // Ensure right-click menus are enabled (this is the default, but good to be explicit)
+                if (WebView.CoreWebView2 != null)
+                {
+                    WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
+                    AppLogger.Log("WebView2 default context menus enabled.");
+                }
+
+                AppLogger.Log("WebView2 initialized successfully.");
+            }
+            catch (WebView2RuntimeNotFoundException ex)
+            {
+                AppLogger.Log($"WebView2 Runtime not found: {ex.Message}");
+                // _ = BugReport.LogErrorAsync(ex, "WebView2 initialization failed: Runtime not found.");
+
+                // The Evergreen Bootstrapper is a small installer that downloads and installs the latest compatible WebView2 Runtime.
+                const string webView2DownloadUrl = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
+
+                var result = MessageBox.Show("The web browser component (Microsoft Edge WebView2 Runtime) is required for web search functionality, but it's not installed on your system.\n\n" +
+                                             "Would you like to download it from Microsoft's official website now?", "WebView2 Runtime Missing", MessageBoxButton.YesNo, MessageBoxImage.Error);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    try
+                    {
+                        Process.Start(new ProcessStartInfo(webView2DownloadUrl) { UseShellExecute = true });
+                        AppLogger.Log($"Opened WebView2 Runtime download URL for user: {webView2DownloadUrl}");
+                    }
+                    catch (Exception linkEx)
+                    {
+                        AppLogger.Log($"Failed to open WebView2 download link: {linkEx.Message}");
+                        _ = BugReport.LogErrorAsync(linkEx, "Failed to open WebView2 download link.");
+                        MessageBox.Show($"Could not open the download link automatically. Please visit the following URL in your browser:\n\n{webView2DownloadUrl}",
+                            "Link Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                }
+            }
+            catch (COMException ex) when (ex.HResult == unchecked((int)0x80004004)) // E_ABORT
+            {
+                AppLogger.Log("WebView2 initialization was aborted (E_ABORT). This might happen if the control is not yet in the visual tree or if multiple initializations are attempted.");
+                _ = BugReport.LogErrorAsync(ex, "WebView2 initialization was aborted (E_ABORT).");
+
+                MessageBox.Show(
+                    "The web browser component initialization was aborted.\n\n" +
+                    "This can occur if the component is already being initialized or if there are permission issues with the data folder.\n\n" +
+                    "Please try restarting the application.",
+                    "WebView2 Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Log($"WebView2 initialization failed with an unexpected error: {ex.Message}");
+                _ = BugReport.LogErrorAsync(ex, "WebView2 initialization failed with an unexpected error.");
+
+                MessageBox.Show(
+                    "An unexpected error occurred while initializing the web browser component (WebView2).\n\n" +
+                    "Please try restarting the application. If the problem persists, ensure Microsoft Edge is up to date.",
+                    "WebView2 Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            finally
+            {
+                _isWebViewInitializing = false;
             }
         }
         catch (Exception ex)
         {
-            AppLogger.Log($"WebView2 initialization failed with an unexpected error: {ex.Message}");
             _ = BugReport.LogErrorAsync(ex, "WebView2 initialization failed with an unexpected error.");
-
-            MessageBox.Show(
-                "An unexpected error occurred while initializing the web browser component (WebView2).\n\n" +
-                "Please try restarting the application. If the problem persists, ensure Microsoft Edge is up to date.",
-                "WebView2 Error",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
         }
     }
 
@@ -821,7 +865,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         // Sort alphabetically and add to the ListBox
         await Dispatcher.InvokeAsync(() =>
         {
-            foreach (var item in missingItems.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+            foreach (var item in missingItems.OrderBy(static x => x, StringComparer.OrdinalIgnoreCase))
             {
                 lstMissingImages.Items.Add(item);
             }
@@ -923,10 +967,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             LblSearchQuery.Content = "";
             IsSearching = false; // Ensure IsSearching is false when no item is selected
             StatusMessageText = "Ready"; // Reset status
-            if (WebView?.CoreWebView2 != null)
-            {
-                WebView.CoreWebView2.Navigate("about:blank"); // Clear WebView content
-            }
+            WebView?.CoreWebView2?.Navigate("about:blank"); // Clear WebView content
 
             return;
         }
@@ -972,7 +1013,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     {
         // This regex matches common patterns in parentheses or square brackets.
         // e.g., (USA), (Europe), (Japan), (Brazil), (En,Ja), [!], (Rev A), (v1.1), (Unl), (Mega Drive 4)
-        var cleanedName = Regex.Replace(fileName, @"\s*(\(.*?\)|\\[.*?\\])", "").Trim();
+        var cleanedName = MyRegex().Replace(fileName, "").Trim();
 
         // If cleaning removed everything (unlikely), fall back to the original name
         return string.IsNullOrWhiteSpace(cleanedName) ? fileName : cleanedName;
@@ -1018,7 +1059,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 AppLogger.Log($"Using cleaned filename for search: '{selectedFile}' -> '{searchTerm}'");
             }
 
-            var extraQuery = TxtExtraQuery.Text?.Trim();
+            var extraQuery = TxtExtraQuery.Text.Trim();
             var searchQuery = !string.IsNullOrWhiteSpace(extraQuery) ? $"\"{searchTerm}\" {extraQuery}" : $"\"{searchTerm}\"";
 
             switch (_settingsManager.SearchEngine)
@@ -1072,7 +1113,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             }
             catch (InvalidOperationException ex) when (ex.Message.Contains("API Key is not set"))
             {
-                await Dispatcher.InvokeAsync(() =>
+                await Dispatcher.InvokeAsync(static () =>
                 {
                     MessageBox.Show("Please configure your API keys in Settings > API Settings.", "Missing API Key", MessageBoxButton.OK, MessageBoxImage.Warning);
                 });
@@ -1290,15 +1331,9 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     private void LstMissingImages_ContextMenuOpening(object sender, ContextMenuEventArgs e)
     {
         var hasSelection = LstMissingImages.SelectedItem != null;
-        if (ContextMenuRemoveItem != null)
-        {
-            ContextMenuRemoveItem.IsEnabled = hasSelection;
-        }
+        ContextMenuRemoveItem?.IsEnabled = hasSelection;
 
-        if (ContextMenuCopyFileName != null)
-        {
-            ContextMenuCopyFileName.IsEnabled = hasSelection;
-        }
+        ContextMenuCopyFileName?.IsEnabled = hasSelection;
     }
 
     private void SetThumbnailSize_Click(object sender, RoutedEventArgs e)
@@ -1362,10 +1397,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
             UpdateSearchUiVisibility(); // Update visibility immediately
             PanelImages.Clear(); // Clear API results when switching to the web view
-            if (WebView?.CoreWebView2 != null)
-            {
-                WebView.CoreWebView2.Navigate("about:blank"); // Clear WebView content
-            }
+            WebView?.CoreWebView2?.Navigate("about:blank"); // Clear WebView content
 
             LblSearchQuery.Content = ""; // Clear search query label
         }
@@ -1413,10 +1445,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     private void OnDebugWindowHidden(object? sender, EventArgs e)
     {
         // Update the menu item checked state when the debug window is hidden
-        if (ToggleDebugWindow != null)
-        {
-            ToggleDebugWindow.IsChecked = false;
-        }
+        ToggleDebugWindow?.IsChecked = false;
     }
 
     private void ApiSettings_Click(object sender, RoutedEventArgs e)
@@ -1482,4 +1511,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         WebView?.Dispose();
         GC.SuppressFinalize(this);
     }
+
+    [GeneratedRegex(@"\s*(\(.*?\)|\\[.*?\\])")]
+    private static partial Regex MyRegex();
 }
