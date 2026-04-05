@@ -1,2 +1,3 @@
 !/GameCoverScraper/bin/
-!/GameCoverScraper/obj/
+obj/
+**/obj/

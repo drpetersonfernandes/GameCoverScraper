@@ -45,6 +45,9 @@ public partial class App
         // Initialize BugReport with settings
         BugReport.Initialize(settings);
 
+        // Record application stats to the stats API
+        _ = ApplicationStatsService.RecordStartupAsync();
+
         // Apply theme from settings
         ThemeManager.Current.ChangeTheme(Current, $"{settings.BaseTheme}.{settings.AccentColor}");
         AppLogger.Log($"Theme set to {settings.BaseTheme}.{settings.AccentColor}.");
