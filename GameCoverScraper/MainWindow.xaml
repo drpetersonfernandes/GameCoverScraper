@@ -4,7 +4,6 @@
                       xmlns:controls="http://metro.mahapps.com/winfx/xaml/controls"
                       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-                      xmlns:gameCoverScraper="clr-namespace:GameCoverScraper"
                       xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
                       mc:Ignorable="d"
                       Title="GameCoverScraper"
@@ -15,15 +14,13 @@
     <Window.Resources>
         <DataTemplate x:Key="ImageCellTemplate">
             <Button Style="{StaticResource ImageSuggestionButtonStyle}" Click="SaveImage_Click">
-                <StackPanel Width="{Binding ThumbnailWidth}" d:DataContext="{d:DesignInstance }">
+                <StackPanel Width="{Binding ThumbnailWidth}">
                     <Image Width="{Binding ThumbnailWidth}" Height="{Binding ThumbnailHeight}"
-                           Source="{Binding ImagePath}" d:DataContext="{d:DesignInstance }" />
+                           Source="{Binding ImagePath}" />
                     <TextBlock HorizontalAlignment="Center" Text="{Binding ImageName}" FontWeight="Bold"
-                               Margin="0,5,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding ImageName}"
-                               d:DataContext="{d:DesignInstance }" />
-                    <TextBlock HorizontalAlignment="Center" Text="{Binding ImageFileSize}"
-                               d:DataContext="{d:DesignInstance }" />
-                    <TextBlock HorizontalAlignment="Center" d:DataContext="{d:DesignInstance }">
+                               Margin="0,5,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding ImageName}" />
+                    <TextBlock HorizontalAlignment="Center" Text="{Binding ImageFileSize}" />
+                    <TextBlock HorizontalAlignment="Center">
                         <TextBlock.Text>
                             <MultiBinding StringFormat="{}{0}x{1} ({2})">
                                 <Binding Path="ImageWidth" />
@@ -244,28 +241,8 @@
                                                VerticalAlignment="Center"
                                                d:DataContext="{d:DesignInstance }" />
 
-                        <TextBlock Text="Select a missing cover from the list to see suggestions."
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource MahApps.Brushes.Gray5}"
-                                   Visibility="{Binding IsSearching, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=inverse}"
-                                   d:DataContext="{d:DesignInstance }">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                    <Style.Triggers>
-                                        <MultiDataTrigger>
-                                            <MultiDataTrigger.Conditions>
-                                                <Condition
-                                                    Binding="{Binding ElementName=ImageScrollViewer, Path=DataContext.(gameCoverScraper:MainWindow.PanelImages).Count}"
-                                                    Value="0" />
-                                                <Condition Binding="{Binding IsSearching}" Value="False" />
-                                            </MultiDataTrigger.Conditions>
-                                            <Setter Property="Visibility" Value="Visible" />
-                                        </MultiDataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
+                        <TextBlock Style="{StaticResource EmptyImageListMessageStyle}"
+                                   d:DataContext="{d:DesignInstance }" />
                     </Grid>
                 </Grid>
             </GroupBox>

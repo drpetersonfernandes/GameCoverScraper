@@ -6,27 +6,27 @@ using GameCoverScraper.Managers;
 
 namespace GameCoverScraper.Services;
 
-public static class BugReport
+public interface IBugReportService
 {
-    private static readonly HttpClient HttpClient = CreateHttpClient();
-    private static SettingsManager? _settings;
+    Task LogErrorAsync(Exception? ex, string? contextMessage = null);
+}
 
-    private static HttpClient CreateHttpClient()
-    {
-        var client = new HttpClient();
-        client.Timeout = TimeSpan.FromSeconds(30);
-        return client;
-    }
+public class BugReportService : IBugReportService
+{
+    private readonly SettingsManager _settings;
 
-    public static void Initialize(SettingsManager settingsManager)
+    // Use shared HttpClient from HttpClientHelper to avoid resource leaks
+    private static HttpClient HttpClient => HttpClientHelper.Client;
+
+    public BugReportService(SettingsManager settingsManager)
     {
         _settings = settingsManager;
     }
 
-    private static string ApiKey => _settings?.BugReportApiKey ?? string.Empty;
-    private static string BugReportApiUrl => _settings?.BugReportApiUrl ?? "https://www.purelogiccode.com/bugreport/api/send-bug-report";
+    private string ApiKey => _settings.BugReportApiKey;
+    private string BugReportApiUrl => _settings.BugReportApiUrl;
 
-    public static async Task LogErrorAsync(Exception? ex, string? contextMessage = null)
+    public async Task LogErrorAsync(Exception? ex, string? contextMessage = null)
     {
         var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
         var errorLogPath = Path.Combine(baseDirectory, "error.log");
@@ -79,7 +79,7 @@ public static class BugReport
         }
     }
 
-    private static async Task<bool> SendLogToApiAsync(string logContent)
+    private async Task<bool> SendLogToApiAsync(string logContent)
     {
         if (string.IsNullOrEmpty(ApiKey))
         {
@@ -179,5 +179,22 @@ public static class BugReport
         }
 
         return false;
+    }
+}
+
+// Legacy static class for backward compatibility during transition
+// Deprecated: Use IBugReportService via dependency injection instead
+public static class BugReport
+{
+    private static BugReportService? _instance;
+
+    public static void Initialize(SettingsManager settingsManager)
+    {
+        _instance = new BugReportService(settingsManager);
+    }
+
+    public static Task LogErrorAsync(Exception? ex, string? contextMessage = null)
+    {
+        return _instance?.LogErrorAsync(ex, contextMessage) ?? Task.CompletedTask;
     }
 }

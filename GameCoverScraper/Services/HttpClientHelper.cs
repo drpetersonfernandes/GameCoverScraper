@@ -29,9 +29,18 @@ public static class HttpClientHelper
 
     public static void Dispose()
     {
+        // Use a local copy to avoid race condition between IsValueCreated check and Value access
         if (HttpClient.IsValueCreated)
         {
-            HttpClient.Value.Dispose();
+            try
+            {
+                var client = HttpClient.Value;
+                client.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed, ignore
+            }
         }
     }
 }

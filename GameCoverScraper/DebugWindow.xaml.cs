@@ -33,6 +33,7 @@ public partial class DebugWindow
         }
 
         Closing += OnLogWindowClosing;
+        Closed += OnLogWindowClosed;
         AppLogger.Log("Log window initialized.");
     }
 
@@ -56,6 +57,17 @@ public partial class DebugWindow
 
         // Notify that the window was hidden
         WindowHidden?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnLogWindowClosed(object? sender, EventArgs e)
+    {
+        // Unsubscribe from CollectionChanged to prevent memory leak
+        if (AppLogger.LogMessages is INotifyCollectionChanged incc)
+        {
+            incc.CollectionChanged -= LogMessages_CollectionChanged;
+        }
+
+        AppLogger.Log("Log window closed and event handlers unsubscribed.");
     }
 
     private void LogMessages_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)

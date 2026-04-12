@@ -9,8 +9,23 @@ public class SettingsManager
 {
     private static readonly object SettingsLock = new();
     private static readonly string SettingsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings.xml");
-    public int ThumbnailSize { get; set; } = DefaultThumbnailSize;
+    private int _thumbnailSize = DefaultThumbnailSize;
     private const int DefaultThumbnailSize = 300;
+    private const int MinThumbnailSize = 50;
+    private const int MaxThumbnailSize = 800;
+
+    public int ThumbnailSize
+    {
+        get => _thumbnailSize;
+        set
+        {
+            if (value is < MinThumbnailSize or > MaxThumbnailSize)
+                throw new ArgumentOutOfRangeException(nameof(value), $"Thumbnail size must be between {MinThumbnailSize} and {MaxThumbnailSize}.");
+
+            _thumbnailSize = value;
+        }
+    }
+
     public string SearchEngine { get; set; } = DefaultSearchEngine;
     private const string DefaultSearchEngine = "BingWeb";
     public string BaseTheme { get; set; } = DefaultBaseTheme;
@@ -32,7 +47,7 @@ public class SettingsManager
     ];
 
     public string GoogleKey { get; set; } = string.Empty;
-    public string GoogleSearchEngineId { get; private set; } = "d30e97188f5914611";
+    public string GoogleSearchEngineId { get; set; } = "d30e97188f5914611";
 
     public void LoadSettings()
     {
@@ -86,7 +101,7 @@ public class SettingsManager
                 SearchEngine = DefaultSearchEngine;
                 BaseTheme = DefaultBaseTheme;
                 AccentColor = DefaultAccentColor;
-                UseMameDescriptions = true;
+                UseMameDescriptions = false;
                 BugReportApiKey = DefaultBugReportApiKey;
                 BugReportApiUrl = DefaultBugReportApiUrl;
                 SupportedExtensions = new List<string>(DefaultSupportedExtensions);
@@ -120,7 +135,9 @@ public class SettingsManager
 
             try
             {
-                doc.Save(SettingsFilePath);
+                // Use FileStream with FileShare.None to prevent concurrent access issues
+                using var fileStream = new FileStream(SettingsFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
+                doc.Save(fileStream);
                 AppLogger.Log("Settings saved successfully.");
             }
             catch (Exception ex)

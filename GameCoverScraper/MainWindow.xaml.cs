@@ -25,8 +25,8 @@ namespace GameCoverScraper;
 
 public partial class MainWindow : INotifyPropertyChanged, IDisposable
 {
-    private readonly List<MameManager> _machines;
-    private readonly Dictionary<string, string> _mameLookup;
+    private List<MameManager> _machines;
+    private Dictionary<string, string> _mameLookup;
     private FileSystemWatcher? _imageFolderWatcher;
     private string? _imageFolderPath;
     private string? _selectedGameFileName;
@@ -51,7 +51,12 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         }
     }
 
-    private readonly SettingsManager _settingsManager;
+    private SettingsManager? _settingsManager;
+
+    /// <summary>
+    /// Gets the initialized settings manager. Throws if accessed before initialization.
+    /// </summary>
+    private SettingsManager Settings => _settingsManager ?? throw new InvalidOperationException("SettingsManager not initialized. Ensure MainWindow_Loaded has completed.");
 
     public string SearchEngineDisplay
     {
@@ -63,28 +68,96 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         }
     } = string.Empty;
 
-    public MainWindow(string? startupImageFolder = null, string? startupRomFolder = null) // Modified constructor
+    private readonly string? _startupImageFolder;
+    private readonly string? _startupRomFolder;
+
+    public MainWindow(string? startupImageFolder = null, string? startupRomFolder = null)
     {
         InitializeComponent();
         AppLogger.Log("MainWindow initializing...");
         DataContext = this;
-        PanelImages = new ObservableCollection<ImageData>();
+        PanelImages = [];
         TxtExtraQuery.Text = "";
 
-        // Initialize the status bar
-        PanelImages.CollectionChanged += (_, _) =>
-        {
-            if (Dispatcher.CheckAccess())
-            {
-                UpdateStatusBar();
-            }
-            else
-            {
-                Dispatcher.Invoke(UpdateStatusBar);
-            }
-        };
+        // Store startup arguments for later initialization
+        _startupImageFolder = startupImageFolder;
+        _startupRomFolder = startupRomFolder;
 
-        // Initialize the selection delay timer
+        // Initialize collections (required for DataContext binding)
+        _machines = [];
+        _mameLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Wire up event handlers
+        Closing += MainWindow_Closing;
+        Closed += (_, _) => Dispose();
+        Loaded += MainWindow_Loaded;
+
+        AppLogger.Log("MainWindow constructor completed (lightweight).");
+    }
+
+    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            AppLogger.Log("MainWindow_Loaded started...");
+
+            // Initialize timers
+            InitializeTimers();
+
+            // Initialize settings
+            _settingsManager = new SettingsManager();
+            Settings.LoadSettings();
+
+            // Update UI based on settings
+            SetCheckedStateForThemeAndAccent();
+            UpdateCheckedState();
+            UpdateMenuItems();
+
+            // Subscribe to the debug window hidden event if it exists
+            if (App.LogWindow != null)
+            {
+                App.LogWindow.WindowHidden -= OnDebugWindowHidden;
+                App.LogWindow.WindowHidden += OnDebugWindowHidden;
+            }
+
+            // Wire up collection changed handler for status bar
+            PanelImages.CollectionChanged += (_, _) =>
+            {
+                if (Dispatcher.CheckAccess())
+                {
+                    UpdateStatusBar();
+                }
+                else
+                {
+                    Dispatcher.Invoke(UpdateStatusBar);
+                }
+            };
+
+            // Add keyboard and context menu handlers
+            LstMissingImages.PreviewKeyDown += LstMissingImages_PreviewKeyDown;
+            LstMissingImages.ContextMenuOpening += LstMissingImages_ContextMenuOpening;
+
+            // Load MAME data asynchronously
+            await LoadMameDataAsync();
+
+            ToggleMameDescriptions.IsChecked = Settings.UseMameDescriptions;
+
+            // Initialize WebView2
+            await InitializeWebViewAsync();
+
+            // Handle startup arguments
+            HandleStartupArguments();
+
+            AppLogger.Log("MainWindow_Loaded completed.");
+        }
+        catch (Exception ex)
+        {
+            _ = BugReport.LogErrorAsync(ex, "Error in MainWindow_Loaded method.");
+        }
+    }
+
+    private void InitializeTimers()
+    {
         _selectionDelayTimer = new DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(300)
@@ -92,41 +165,19 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         _selectionDelayTimer.Tick += SelectionDelayTimer_Tick;
         AppLogger.Log("Selection delay timer initialized.");
 
-        // Initialize the status message timer
         _statusMessageTimer = new DispatcherTimer
         {
             Interval = TimeSpan.FromSeconds(5)
         };
         _statusMessageTimer.Tick += StatusMessageTimer_Tick;
         AppLogger.Log("Status message timer initialized.");
+    }
 
-        _settingsManager = new SettingsManager();
-        _settingsManager.LoadSettings();
-
-        SetCheckedStateForThemeAndAccent();
-        UpdateCheckedState();
-        UpdateMenuItems();
-
-        Closing += MainWindow_Closing;
-        Closed += (_, _) => Dispose();
-
-        // Subscribe to the debug window hidden event if it exists
-        if (App.LogWindow != null)
-        {
-            App.LogWindow.WindowHidden -= OnDebugWindowHidden;
-            App.LogWindow.WindowHidden += OnDebugWindowHidden;
-        }
-
-        AppLogger.Log("MainWindow initialized.");
-
-        // Initialize _machines and _mameLookup to empty collections by default
-        _machines = new List<MameManager>();
-        _mameLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-        // Load _machines and _mameLookup with error handling
+    private async Task LoadMameDataAsync()
+    {
         try
         {
-            _machines = MameManager.LoadFromDat();
+            _machines = await Task.Run(static () => MameManager.LoadFromDat());
             _mameLookup = _machines
                 .GroupBy(static m => m.MachineName, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(static g => g.Key, static g => g.First().Description, StringComparer.OrdinalIgnoreCase);
@@ -172,51 +223,43 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 "MAME descriptions will not be available.",
                 "MAME Data Load Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
 
-        // Add a keyboard event handler
-        LstMissingImages.PreviewKeyDown += LstMissingImages_PreviewKeyDown;
-
-        // Add a context menu opening handler for LstMissingImages
-        LstMissingImages.ContextMenuOpening += LstMissingImages_ContextMenuOpening;
-
-        ToggleMameDescriptions.IsChecked = _settingsManager.UseMameDescriptions;
-
-        Loaded += (_, _) => InitializeWebViewAsync();
-
-        // --- Handle startup arguments ---
-        if (!string.IsNullOrEmpty(startupImageFolder))
+    private void HandleStartupArguments()
+    {
+        if (!string.IsNullOrEmpty(_startupImageFolder))
         {
-            TxtImageFolder.Text = startupImageFolder;
-            _imageFolderPath = startupImageFolder; // Also set the internal field
-            AppLogger.Log($"Image folder set from startup argument: '{startupImageFolder}'");
+            TxtImageFolder.Text = _startupImageFolder;
+            _imageFolderPath = _startupImageFolder;
+            AppLogger.Log($"Image folder set from startup argument: '{_startupImageFolder}'");
         }
 
-        if (!string.IsNullOrEmpty(startupRomFolder))
+        if (!string.IsNullOrEmpty(_startupRomFolder))
         {
-            TxtRomFolder.Text = startupRomFolder;
-            AppLogger.Log($"ROM folder set from startup argument: '{startupRomFolder}'");
+            TxtRomFolder.Text = _startupRomFolder;
+            AppLogger.Log($"ROM folder set from startup argument: '{_startupRomFolder}'");
         }
 
-        // If both folders are provided, automatically trigger the check for missing images
+        // If both folders are provided, automatically trigger the check
         if (!string.IsNullOrEmpty(TxtImageFolder.Text) && !string.IsNullOrEmpty(TxtRomFolder.Text))
         {
             AppLogger.Log("Both startup folders provided. Initializing FileSystemWatcher and checking for missing images automatically.");
-            InitializeFileSystemWatcher(); // Ensure a watcher is set up for the provided image folder
-            // Use Dispatcher.BeginInvoke to ensure the UI is fully rendered before starting heavy operations
-            // and to avoid blocking the constructor.
-            Dispatcher.BeginInvoke(new Action(void () =>
+            InitializeFileSystemWatcher();
+            _ = Task.Run(async () =>
             {
                 try
                 {
-                    BtnCheckForMissingImages_Click(this, new RoutedEventArgs());
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        BtnCheckForMissingImages_Click(this, new RoutedEventArgs());
+                    });
                 }
                 catch (Exception ex)
                 {
-                    _ = BugReport.LogErrorAsync(ex, "Error in MainWindow constructor");
+                    _ = BugReport.LogErrorAsync(ex, "Error handling startup arguments");
                 }
-            }), DispatcherPriority.Loaded);
+            });
         }
-        // --- End handle startup arguments ---
     }
 
     private void InitializeFileSystemWatcher()
@@ -261,10 +304,10 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
             // Check if this file corresponds to any item in the missing list.
             // This is more robust than checking only against _selectedGameFileName.
-            var isFileInMissingList = false;
-            await Dispatcher.InvokeAsync(() =>
+            // Use Invoke (synchronous) to ensure thread-safe access to the UI collection
+            var isFileInMissingList = Dispatcher.Invoke(() =>
             {
-                isFileInMissingList = LstMissingImages.Items.Cast<object>()
+                return LstMissingImages.Items.Cast<object>()
                     .Any(item => string.Equals(item.ToString(), newFileNameWithoutExt, StringComparison.OrdinalIgnoreCase));
             });
 
@@ -432,6 +475,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 IsSearching = false;
                 StatusMessageText = "All covers found!";
                 _selectedGameFileName = null;
+                // Safely navigate WebView to blank - check CoreWebView2 is initialized
                 WebView?.CoreWebView2?.Navigate("about:blank");
             }
         }
@@ -440,7 +484,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         UpdateMissingImagesCount();
     }
 
-    private async void InitializeWebViewAsync()
+    private async Task InitializeWebViewAsync()
     {
         try
         {
@@ -557,7 +601,9 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     private void UpdateSearchUiVisibility()
     {
         // Show WebView for web search engines, hide for API search engines
-        if (_settingsManager.SearchEngine is "BingWeb" or "GoogleWeb")
+        // Use case-insensitive comparison to handle any case variations in settings
+        var searchEngine = Settings.SearchEngine.ToLowerInvariant();
+        if (searchEngine is "bingweb" or "googleweb")
         {
             ImageScrollViewer.Visibility = Visibility.Collapsed;
             WebView.Visibility = Visibility.Visible;
@@ -600,15 +646,18 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     private void UpdateStatusBar()
     {
         // Ensure UI updates happen on the UI thread
+        // Use null-conditional operators to prevent NullReferenceException
         if (Dispatcher.CheckAccess())
         {
             // We're on the UI thread, safe to update directly
-            SearchEngineDisplay = _settingsManager.SearchEngine;
+            SearchEngineDisplay = Settings.SearchEngine;
 
             if (StatusMessage != null)
             {
                 // Only show image count for API searches, not web views
-                StatusImageCount.Text = _settingsManager.SearchEngine is "BingWeb" or "GoogleWeb" ? "N/A" : PanelImages.Count.ToString(CultureInfo.InvariantCulture);
+                // Use case-insensitive comparison
+                var searchEngine = Settings.SearchEngine.ToLowerInvariant();
+                StatusImageCount.Text = searchEngine is "bingweb" or "googleweb" ? "N/A" : PanelImages.Count.ToString(CultureInfo.InvariantCulture);
             }
         }
         else
@@ -616,11 +665,12 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             // We're on a background thread, dispatch to UI thread
             Dispatcher.Invoke(() =>
             {
-                SearchEngineDisplay = _settingsManager.SearchEngine;
+                SearchEngineDisplay = Settings.SearchEngine;
 
                 if (StatusMessage != null)
                 {
-                    StatusImageCount.Text = _settingsManager.SearchEngine is "BingWeb" or "GoogleWeb" ? "N/A" : PanelImages.Count.ToString(CultureInfo.InvariantCulture);
+                    var searchEngine = Settings.SearchEngine.ToLowerInvariant();
+                    StatusImageCount.Text = searchEngine is "bingweb" or "googleweb" ? "N/A" : PanelImages.Count.ToString(CultureInfo.InvariantCulture);
                 }
             });
         }
@@ -643,12 +693,12 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     private void SetCheckedStateForThemeAndAccent()
     {
         AppLogger.Log("Setting checked state for theme and accent menu items.");
-        LightTheme.IsChecked = _settingsManager.BaseTheme == "Light";
-        DarkTheme.IsChecked = _settingsManager.BaseTheme == "Dark";
+        LightTheme.IsChecked = Settings.BaseTheme == "Light";
+        DarkTheme.IsChecked = Settings.BaseTheme == "Dark";
 
         foreach (var item in MenuAccentColors.Items.OfType<MenuItem>())
         {
-            item.IsChecked = item.Name.Replace("Accent", "") == _settingsManager.AccentColor;
+            item.IsChecked = item.Name.Replace("Accent", "") == Settings.AccentColor;
         }
     }
 
@@ -657,9 +707,9 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         if (sender is not MenuItem menuItem) return;
 
         var theme = menuItem.Name == "LightTheme" ? "Light" : "Dark";
-        _settingsManager.BaseTheme = theme;
-        ThemeManager.Current.ChangeTheme(Application.Current, $"{theme}.{_settingsManager.AccentColor}");
-        _settingsManager.SaveSettings();
+        Settings.BaseTheme = theme;
+        ThemeManager.Current.ChangeTheme(Application.Current, $"{theme}.{Settings.AccentColor}");
+        Settings.SaveSettings();
 
         LightTheme.IsChecked = theme == "Light";
         DarkTheme.IsChecked = theme == "Dark";
@@ -672,9 +722,9 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         if (sender is not MenuItem menuItem) return;
 
         var accent = menuItem.Name.Replace("Accent", "");
-        _settingsManager.AccentColor = accent;
-        ThemeManager.Current.ChangeTheme(Application.Current, $"{_settingsManager.BaseTheme}.{accent}");
-        _settingsManager.SaveSettings();
+        Settings.AccentColor = accent;
+        ThemeManager.Current.ChangeTheme(Application.Current, $"{Settings.BaseTheme}.{accent}");
+        Settings.SaveSettings();
 
         foreach (var item in MenuAccentColors.Items.OfType<MenuItem>())
         {
@@ -768,7 +818,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                     return;
                 }
 
-                var supportedExtensions = _settingsManager.SupportedExtensions.ToArray();
+                var supportedExtensions = Settings.SupportedExtensions.ToArray();
 
                 // Check if supported extensions are available
                 if (supportedExtensions.Length == 0)
@@ -834,49 +884,38 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     /// <param name="romFiles">An array of full paths to ROM files.</param>
     private async Task CheckForMissingImages(ListBox lstMissingImages, string imageFolderPath, string[] romFiles)
     {
-        AppLogger.Log("Starting check for missing images (all recognized formats)."); // Updated log message
-        await Dispatcher.InvokeAsync(() => lstMissingImages.Items.Clear());
+        AppLogger.Log("Starting check for missing images (all recognized formats).");
         StatusMessageText = "Scanning for missing covers...";
 
-        // Define all recognized image extensions that can serve as a cover
-        string[] recognizedCoverExtensions = [".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tiff", ".tif", ".webp", ".avif"];
+        // Build a HashSet of all existing image filenames (without extension, case-insensitive) for O(1) lookups
+        var existingImageNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        var missingItems = new List<string>();
-
-        foreach (var file in romFiles)
+        // Enumerate all image files once and extract their base names
+        string[] imageExtensions = ["*.png", "*.jpg", "*.jpeg", "*.bmp", "*.gif", "*.tiff", "*.tif", "*.webp", "*.avif"];
+        foreach (var pattern in imageExtensions)
         {
-            var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(file);
-            var coverFound = false;
-
-            // Check if any recognized image file exists for this ROM
-            foreach (var ext in recognizedCoverExtensions)
+            foreach (var imagePath in Directory.EnumerateFiles(imageFolderPath, pattern))
             {
-                var imagePath = Path.Combine(imageFolderPath, fileNameWithoutExtension + ext);
-                if (File.Exists(imagePath))
-                {
-                    coverFound = true;
-                    break; // Found a cover for this ROM, no need to check other extensions
-                }
-            }
-
-            // If no cover was found after checking all recognized extensions, add to the missing list
-            if (!coverFound)
-            {
-                missingItems.Add(fileNameWithoutExtension);
+                existingImageNames.Add(Path.GetFileNameWithoutExtension(imagePath));
             }
         }
 
-        // Sort alphabetically and add to the ListBox
+        // Find ROMs that don't have a corresponding image
+        var missingItems = romFiles
+            .Select(Path.GetFileNameWithoutExtension)
+            .Where(romName => romName != null && !existingImageNames.Contains(romName))
+            .OrderBy(static x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        // Batch all UI updates into a single Dispatcher.InvokeAsync call
         await Dispatcher.InvokeAsync(() =>
         {
-            foreach (var item in missingItems.OrderBy(static x => x, StringComparer.OrdinalIgnoreCase))
+            lstMissingImages.Items.Clear();
+            foreach (var item in missingItems)
             {
                 lstMissingImages.Items.Add(item);
             }
-        });
 
-        await Dispatcher.InvokeAsync(() =>
-        {
             AppLogger.Log($"Finished scanning. Found {lstMissingImages.Items.Count} missing images.");
             StatusMessageText = $"Found {lstMissingImages.Items.Count} missing covers.";
             UpdateMissingImagesCount();
@@ -885,7 +924,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
     /// <summary>
     /// Converts an image from a source path to a PNG format at a destination path.
-    /// Preserves the aspect ratio, dimensions, and transparency using SixLabors.ImageSharp.
+    /// Preserves the aspect ratio, dimensions, and transparency using Magick.NET (ImageMagick).
     /// </summary>
     /// <param name="sourcePath">The path to the source image file.</param>
     /// <param name="destinationPath">The path where the PNG image will be saved.</param>
@@ -957,12 +996,13 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         _selectionDelayTimer?.Stop();
 
         // Cancel any ongoing search immediately
-        if (_searchCts is not null)
+        // Use Interlocked.Exchange for thread-safe disposal to prevent race conditions
+        var oldCts = Interlocked.Exchange(ref _searchCts, null);
+        if (oldCts is not null)
         {
             AppLogger.Log("Cancelling previous search.");
-            _searchCts.Cancel();
-            _searchCts.Dispose();
-            _searchCts = null;
+            oldCts.Cancel();
+            oldCts.Dispose();
         }
 
         if (LstMissingImages.SelectedItem is not string selectedFile)
@@ -1024,7 +1064,43 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         return string.IsNullOrWhiteSpace(cleanedName) ? fileName : cleanedName;
     }
 
-    private async void SelectionDelayTimer_Tick(object? sender, EventArgs e)
+    /// <summary>
+    /// Sanitizes a filename to prevent path traversal attacks.
+    /// Removes path separator characters and other potentially dangerous characters.
+    /// </summary>
+    /// <param name="fileName">The original filename.</param>
+    /// <returns>A sanitized filename safe for use in path construction.</returns>
+    private static string SanitizeFileName(string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return "unnamed";
+        }
+
+        // Remove path traversal sequences and invalid path characters
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var sanitized = new string(fileName
+            .Replace("..", "")
+            .Replace("/", "")
+            .Replace("\\", "")
+            .Select(c => invalidChars.Contains(c) ? '_' : c)
+            .ToArray());
+
+        // Trim whitespace and dots from ends
+        sanitized = sanitized.Trim().TrimEnd('.');
+
+        // Ensure we have something left
+        return string.IsNullOrWhiteSpace(sanitized) ? "unnamed" : sanitized;
+    }
+
+    private void SelectionDelayTimer_Tick(object? sender, EventArgs e)
+    {
+        // Fire-and-forget async operation to avoid deadlock risk
+        // The timer tick is a UI thread event, so we can safely access UI elements directly
+        _ = SelectionDelayTimer_TickAsync();
+    }
+
+    private async Task SelectionDelayTimer_TickAsync()
     {
         try
         {
@@ -1038,14 +1114,12 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
             if (LstMissingImages.SelectedItem is not string selectedFile)
             {
-                await Dispatcher.InvokeAsync(() =>
-                {
-                    PanelImages.Clear();
-                    UpdateStatusBar();
-                    LblSearchQuery.Content = "";
-                    IsSearching = false;
-                    StatusMessageText = "Ready";
-                });
+                // Direct UI access - we're on UI thread
+                PanelImages.Clear();
+                UpdateStatusBar();
+                LblSearchQuery.Content = "";
+                IsSearching = false;
+                StatusMessageText = "Ready";
                 return;
             }
 
@@ -1053,7 +1127,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
             // Determine search query
             string searchTerm;
-            if (_settingsManager.UseMameDescriptions && _mameLookup.TryGetValue(selectedFile, out var mameDescription) && !string.IsNullOrWhiteSpace(mameDescription))
+            if (Settings.UseMameDescriptions && _mameLookup.TryGetValue(selectedFile, out var mameDescription) && !string.IsNullOrWhiteSpace(mameDescription))
             {
                 searchTerm = mameDescription;
                 AppLogger.Log($"Using MAME description for search: '{selectedFile}' -> '{mameDescription}'");
@@ -1067,16 +1141,16 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             var extraQuery = TxtExtraQuery.Text.Trim();
             var searchQuery = !string.IsNullOrWhiteSpace(extraQuery) ? $"\"{searchTerm}\" {extraQuery}" : $"\"{searchTerm}\"";
 
-            switch (_settingsManager.SearchEngine)
+            switch (Settings.SearchEngine)
             {
                 case "BingWeb":
-                    await HandleBingWebSearch(searchQuery);
+                    await HandleBingWebSearch(searchQuery).ConfigureAwait(false);
                     return;
                 case "GoogleWeb":
-                    await HandleGoogleWebSearch(searchQuery);
+                    await HandleGoogleWebSearch(searchQuery).ConfigureAwait(false);
                     return;
                 default:
-                    await HandleApiSearch(searchQuery, token);
+                    await HandleApiSearch(searchQuery, token).ConfigureAwait(false);
                     break;
             }
         }
@@ -1090,14 +1164,17 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     {
         _statusMessageTimer?.Stop();
 
+        // Store and clear the pending message before releasing the lock
+        var messageToApply = _pendingStatusMessage;
+        _pendingStatusMessage = null;
+
         // Release the lock
         _isStatusMessageTimed = false;
 
-        // Apply any pending message
-        if (_pendingStatusMessage != null)
+        // Apply any pending message after releasing the lock
+        if (messageToApply != null)
         {
-            StatusMessage.Text = _pendingStatusMessage;
-            _pendingStatusMessage = null;
+            StatusMessageText = messageToApply;
         }
     }
 
@@ -1108,13 +1185,13 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             // For API searches, we typically want exact matches, so quoting the search term is good.
             // Ensure any existing quotes are handled to avoid double quoting.
             var apiSearchQuery = $"\"{searchQuery.Replace("\"", "")}\"";
-            AppLogger.Log($"Starting API image search for '{_selectedGameFileName}' using {_settingsManager.SearchEngine}.");
+            AppLogger.Log($"Starting API image search for '{_selectedGameFileName}' using {Settings.SearchEngine}.");
             AppLogger.Log($"API Search query: {apiSearchQuery}");
 
             List<ImageData> coverImageUrls;
             try
             {
-                coverImageUrls = await FetchImagesWithRetry(apiSearchQuery, _settingsManager.SearchEngine, token).ConfigureAwait(false);
+                coverImageUrls = await FetchImagesWithRetry(apiSearchQuery, Settings.SearchEngine, token).ConfigureAwait(false);
             }
             catch (InvalidOperationException ex) when (ex.Message.Contains("API Key is not set"))
             {
@@ -1123,7 +1200,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 {
                     MessageBox.Show("Please configure your API keys in Settings > API Settings.", "Missing API Key", MessageBoxButton.OK, MessageBoxImage.Warning);
                 });
-                coverImageUrls = new List<ImageData>();
+                coverImageUrls = [];
             }
             catch (InvalidOperationException ex)
             {
@@ -1132,7 +1209,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 {
                     MessageBox.Show(ex.Message, "API Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 });
-                coverImageUrls = new List<ImageData>();
+                coverImageUrls = [];
             }
             catch (OperationCanceledException)
             {
@@ -1143,54 +1220,57 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
             if (token.IsCancellationRequested) return;
 
-            await Dispatcher.InvokeAsync(() =>
-            {
-                PanelImages.Clear();
-                UpdateStatusBar();
-                ImageScrollViewer.ScrollToTop();
-            });
+            var thumbnailSize = Settings.ThumbnailSize;
 
-            var thumbnailSize = _settingsManager.ThumbnailSize;
+            // Prepare all image data items in a temporary list first (off UI thread)
+            List<ImageData> imageDataList;
             if (coverImageUrls.Count > 0)
             {
-                AppLogger.Log($"Fetched {coverImageUrls.Count} images from {_settingsManager.SearchEngine}.");
-                await Dispatcher.InvokeAsync(() =>
+                AppLogger.Log($"Fetched {coverImageUrls.Count} images from {Settings.SearchEngine}.");
+                imageDataList = coverImageUrls.Select(result =>
                 {
-                    StatusMessageText = $"Found {coverImageUrls.Count} images.";
-                    LblSearchQuery.Content = new TextBlock
-                    {
-                        Inlines =
-                        {
-                            new Run(apiSearchQuery) { FontWeight = FontWeights.Bold },
-                            new Run($" (Fetched {coverImageUrls.Count} images from {_settingsManager.SearchEngine})")
-                        }
-                    };
-                    foreach (var result in coverImageUrls)
-                    {
-                        result.ThumbnailWidth = thumbnailSize;
-                        result.ThumbnailHeight = thumbnailSize;
-                        PanelImages.Add(result);
-                    }
-
-                    UpdateStatusBar();
-                });
+                    result.ThumbnailWidth = thumbnailSize;
+                    result.ThumbnailHeight = thumbnailSize;
+                    return result;
+                }).ToList();
             }
             else
             {
                 AppLogger.Log($"No results found for query: {apiSearchQuery}");
-                await Dispatcher.InvokeAsync(() =>
-                {
-                    StatusMessageText = "No images found.";
-                    LblSearchQuery.Content = $"{apiSearchQuery} (No results found from {_settingsManager.SearchEngine})";
-                    PanelImages.Add(new ImageData
+                imageDataList =
+                [
+                    new ImageData
                     {
                         ImageName = "No Cover Image Found",
                         ImagePath = "pack://application:,,,/images/default.png",
                         ThumbnailWidth = thumbnailSize,
                         ThumbnailHeight = thumbnailSize
-                    });
-                });
+                    }
+                ];
             }
+
+            // Batch update the ObservableCollection by creating a new one (avoids individual CollectionChanged events)
+            await Dispatcher.InvokeAsync(() =>
+            {
+                // Create new ObservableCollection to avoid triggering notifications for each item
+                PanelImages = new ObservableCollection<ImageData>(imageDataList);
+                OnPropertyChanged(nameof(PanelImages));
+
+                StatusMessageText = coverImageUrls.Count > 0 ? $"Found {coverImageUrls.Count} images." : "No images found.";
+                LblSearchQuery.Content = coverImageUrls.Count > 0
+                    ? new TextBlock
+                    {
+                        Inlines =
+                        {
+                            new Run(apiSearchQuery) { FontWeight = FontWeights.Bold },
+                            new Run($" (Fetched {coverImageUrls.Count} images from {Settings.SearchEngine})")
+                        }
+                    }
+                    : new TextBlock(new Run($"{apiSearchQuery} (No results found from {Settings.SearchEngine})"));
+
+                UpdateStatusBar();
+                ImageScrollViewer.ScrollToTop();
+            });
         }
         catch (OperationCanceledException ex)
         {
@@ -1236,10 +1316,10 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 {
                     case "Google":
                         var googleProvider = new Google();
-                        Google.LoadApiKeyFromSettings(_settingsManager);
-                        return await googleProvider.FetchImagesFromGoogleAsync(searchQuery, _settingsManager, cancellationToken).ConfigureAwait(false);
+                        Google.LoadApiKeyFromSettings(Settings);
+                        return await googleProvider.FetchImagesFromGoogleAsync(searchQuery, Settings, cancellationToken).ConfigureAwait(false);
                     default:
-                        return new List<ImageData>();
+                        return [];
                 }
             }
             catch (InvalidOperationException ex) when (ex.Message.Contains("API Key is not set") && retryCount < maxRetries)
@@ -1253,27 +1333,27 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
                 if (result == MessageBoxResult.Yes)
                 {
-                    var apiSettingsWindow = new ApiSettingsWindow(_settingsManager)
+                    var apiSettingsWindow = new ApiSettingsWindow(Settings)
                     {
                         Owner = this
                     };
 
                     if (apiSettingsWindow.ShowDialog() != true)
                     {
-                        return new List<ImageData>(); // User cancelled
+                        return []; // User cancelled
                     }
                     // Continue to retry
                 }
                 else
                 {
-                    return new List<ImageData>(); // User doesn't want to configure
+                    return []; // User doesn't want to configure
                 }
             }
             catch (InvalidOperationException ex)
             {
                 _ = BugReport.LogErrorAsync(ex, "API error in FetchImagesWithRetry.");
                 MessageBox.Show(ex.Message, "API Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return new List<ImageData>();
+                return [];
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -1282,7 +1362,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             }
         }
 
-        return new List<ImageData>();
+        return [];
     }
 
     private void BtnRemoveSelectedItem_Click(object sender, RoutedEventArgs e)
@@ -1351,8 +1431,8 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         if (sender is not MenuItem menuItem ||
             !int.TryParse(menuItem.Header.ToString()?.Replace(" pixels", ""), out var size)) return;
 
-        _settingsManager.ThumbnailSize = size;
-        _settingsManager.SaveSettings();
+        Settings.ThumbnailSize = size;
+        Settings.SaveSettings();
 
         ApplyThumbnailSizeInPanel(size);
         UpdateCheckedState();
@@ -1374,7 +1454,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
     private void UpdateCheckedState()
     {
-        var savedSize = _settingsManager.ThumbnailSize;
+        var savedSize = Settings.ThumbnailSize;
         foreach (var item in ThumbnailSizeMenu.Items.OfType<MenuItem>())
         {
             if (int.TryParse(item.Header.ToString()?.Replace(" pixels", ""), out var tagSize))
@@ -1388,7 +1468,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     {
         foreach (var item in SearchEngineMenu.Items.OfType<MenuItem>())
         {
-            item.IsChecked = item.Tag?.ToString() == _settingsManager.SearchEngine;
+            item.IsChecked = item.Tag?.ToString() == Settings.SearchEngine;
         }
     }
 
@@ -1398,12 +1478,12 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
         try
         {
-            _settingsManager.SearchEngine = menuItem.Tag.ToString() ?? throw new InvalidOperationException();
-            _settingsManager.SaveSettings();
+            Settings.SearchEngine = menuItem.Tag.ToString() ?? throw new InvalidOperationException();
+            Settings.SaveSettings();
             UpdateMenuItems();
-            AppLogger.Log($"Search engine set to '{_settingsManager.SearchEngine}'.");
-            StatusMessageText = $"Search engine set to {_settingsManager.SearchEngine}.";
-            SearchEngineDisplay = _settingsManager.SearchEngine;
+            AppLogger.Log($"Search engine set to '{Settings.SearchEngine}'.");
+            StatusMessageText = $"Search engine set to {Settings.SearchEngine}.";
+            SearchEngineDisplay = Settings.SearchEngine;
 
             UpdateSearchUiVisibility(); // Update visibility immediately
             PanelImages.Clear(); // Clear API results when switching to the web view
@@ -1463,7 +1543,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         AppLogger.Log("API Settings menu item clicked.");
         try
         {
-            var apiSettingsWindow = new ApiSettingsWindow(_settingsManager)
+            var apiSettingsWindow = new ApiSettingsWindow(Settings)
             {
                 Owner = this
             };
@@ -1483,7 +1563,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
     private void EditExtensions_Click(object sender, RoutedEventArgs e)
     {
-        var settingsWindow = new SettingsWindow(_settingsManager)
+        var settingsWindow = new SettingsWindow(Settings)
         {
             Owner = this
         };
@@ -1492,8 +1572,8 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
     private void ToggleMameDescriptions_Click(object sender, RoutedEventArgs e)
     {
-        _settingsManager.UseMameDescriptions = ToggleMameDescriptions.IsChecked;
-        _settingsManager.SaveSettings();
+        Settings.UseMameDescriptions = ToggleMameDescriptions.IsChecked;
+        Settings.SaveSettings();
         StatusMessageText = $"MAME descriptions turned {(ToggleMameDescriptions.IsChecked ? "on" : "off")}.";
         AppLogger.Log($"MAME descriptions turned {(ToggleMameDescriptions.IsChecked ? "on" : "off")}.");
     }
@@ -1505,8 +1585,9 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
     private static void MainWindow_Closing(object? sender, CancelEventArgs e)
     {
+        // ForceClose sets the flag to allow the window to close properly
+        // Close() is not needed as ForceClose() already handles the cleanup
         App.LogWindow?.ForceClose();
-        App.LogWindow?.Close();
     }
 
     private async void SaveImage_Click(object sender, RoutedEventArgs e)
@@ -1529,13 +1610,16 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 return;
             }
 
-            StatusMessageText = $"Saving image for '{_selectedGameFileName}'...";
-            var localPath = Path.Combine(_imageFolderPath, _selectedGameFileName + ".png");
-            AppLogger.Log($"Attempting to save image for '{_selectedGameFileName}' to '{localPath}'.");
+            // Sanitize filename to prevent path traversal attacks
+            var safeFileName = SanitizeFileName(_selectedGameFileName);
+
+            StatusMessageText = $"Saving image for '{safeFileName}'...";
+            var localPath = Path.Combine(_imageFolderPath, safeFileName + ".png");
+            AppLogger.Log($"Attempting to save image for '{safeFileName}' to '{localPath}'.");
 
             if (File.Exists(localPath))
             {
-                var result = MessageBox.Show($"The file '{_selectedGameFileName}.png' already exists. Do you want to overwrite it?",
+                var result = MessageBox.Show($"The file '{safeFileName}.png' already exists. Do you want to overwrite it?",
                     "File Exists", MessageBoxButton.YesNo, MessageBoxImage.Question);
                 if (result != MessageBoxResult.Yes)
                 {
@@ -1557,7 +1641,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                     {
                         RemoveSelectedItem();
                         PlaySound.PlayClickSound();
-                        StatusMessageText = $"Image saved: {_selectedGameFileName}.png";
+                        StatusMessageText = $"Image saved: {safeFileName}.png";
                     });
                 }
                 else
@@ -1582,15 +1666,34 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     {
         AppLogger.Log("Disposing MainWindow resources.");
         _searchCts?.Dispose();
-        _selectionDelayTimer?.Stop();
-        _selectionDelayTimer = null;
-        _statusMessageTimer?.Stop();
-        _statusMessageTimer = null;
+
+        // Unsubscribe timer event handlers to prevent memory leaks
+        if (_selectionDelayTimer != null)
+        {
+            _selectionDelayTimer.Tick -= SelectionDelayTimer_Tick;
+            _selectionDelayTimer.Stop();
+            _selectionDelayTimer = null;
+        }
+
+        if (_statusMessageTimer != null)
+        {
+            _statusMessageTimer.Tick -= StatusMessageTimer_Tick;
+            _statusMessageTimer.Stop();
+            _statusMessageTimer = null;
+        }
+
+        // Unsubscribe WebView event handler to prevent memory leaks
+        if (WebView != null)
+        {
+            WebView.NavigationCompleted -= WebView_NavigationCompleted;
+        }
+
         _imageFolderWatcher?.Dispose();
         WebView?.Dispose();
         GC.SuppressFinalize(this);
     }
 
-    [GeneratedRegex(@"\s*(\(.*?\)|\\[.*?\\])")]
+    // Matches parenthesized or bracketed text: (content) or [content]
+    [GeneratedRegex(@"\s*(\(.*?\)|\[.*?\])")]
     private static partial Regex MyRegex();
 }

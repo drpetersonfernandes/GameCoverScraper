@@ -30,7 +30,7 @@ public static class ApplicationStatsService
             request.Headers.Add("Authorization", $"Bearer {ApiKey}");
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-            using var response = await HttpClientHelper.Client.SendAsync(request, cts.Token);
+            using var response = await HttpClientHelper.Client.SendAsync(request, cts.Token).ConfigureAwait(false);
 
             if (response.IsSuccessStatusCode)
             {
@@ -48,6 +48,7 @@ public static class ApplicationStatsService
         catch (Exception ex)
         {
             AppLogger.Log($"Failed to record application stats: {ex.Message}");
+            _ = BugReport.LogErrorAsync(ex, "Failed to record application stats.");
         }
     }
 }

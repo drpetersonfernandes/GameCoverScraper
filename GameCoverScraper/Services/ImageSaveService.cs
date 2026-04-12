@@ -1,5 +1,4 @@
 using System.IO;
-using System.Windows;
 using ImageMagick;
 
 namespace GameCoverScraper.Services;
@@ -67,8 +66,8 @@ public class ImageSaveService
         }
         catch (Exception ex)
         {
-            MessageBox.Show("There was an error saving the image.\n\n" +
-                            "The developer will try to fix this.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            // Log the error - UI notifications should be handled by the caller
+            AppLogger.Log($"Error saving image: {ex.Message}");
             _ = BugReport.LogErrorAsync(ex, "General error during image conversion.");
 
             return false;

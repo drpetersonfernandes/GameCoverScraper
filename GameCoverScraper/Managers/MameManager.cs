@@ -24,7 +24,7 @@ public class MameManager
         {
             const string contextMessage = "The file 'mame.dat' could not be found in the application folder.";
             AppLogger.Log(contextMessage); // Log the event
-            _ = BugReport.LogErrorAsync(new MameDatNotFoundException(contextMessage), contextMessage); // Report as error
+            // Do not report here - let the caller decide whether to report
             throw new MameDatNotFoundException($"The required data file 'mame.dat' was not found at: {datPath}");
         }
 
@@ -41,7 +41,7 @@ public class MameManager
             // Specific handling for serialization errors
             const string contextMessage = "The mame.dat file is corrupted or in an invalid format.";
             AppLogger.Log(contextMessage);
-            _ = BugReport.LogErrorAsync(ex, contextMessage);
+            // Do not report here - let the caller handle reporting to avoid duplicates
             throw new MameDatCorruptError(contextMessage, ex);
         }
         catch (IOException ex)
@@ -49,16 +49,16 @@ public class MameManager
             // Specific handling for file access errors
             const string contextMessage = "Unable to access the mame.dat file (may be in use by another process).";
             AppLogger.Log(contextMessage);
-            _ = BugReport.LogErrorAsync(ex, contextMessage);
-            throw new IOException(contextMessage, ex); // Re-throw IOException
+            // Do not report here - let the caller handle reporting to avoid duplicates
+            throw new IOException(contextMessage, ex);
         }
         catch (Exception ex)
         {
             // General exception handling
             const string contextMessage = "An unexpected error occurred while loading the mame.dat file.";
             AppLogger.Log(contextMessage);
-            _ = BugReport.LogErrorAsync(ex, contextMessage);
-            throw new Exception(contextMessage, ex); // Re-throw general Exception
+            // Do not report here - let the caller handle reporting to avoid duplicates
+            throw new Exception(contextMessage, ex);
         }
     }
 }

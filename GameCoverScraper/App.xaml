@@ -1,6 +1,9 @@
 ﻿<Application x:Class="GameCoverScraper.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:gameCoverScraper="clr-namespace:GameCoverScraper"
+             xmlns:componentModel="clr-namespace:System.ComponentModel;assembly=WindowsBase"
+             xmlns:services="clr-namespace:GameCoverScraper.Services"
              ShutdownMode="OnMainWindowClose">
     <Application.Resources>
         <ResourceDictionary>
@@ -11,8 +14,11 @@
                     Source="pack://application:,,,/MahApps.Metro;component/Styles/Themes/Light.Blue.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
+            <!-- Converters -->
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+            <services:ObjectToBoolConverter x:Key="IsNotNullConverter" />
 
+            <!-- Styles -->
             <Style x:Key="ImageSuggestionButtonStyle" TargetType="Button">
                 <Setter Property="Margin" Value="10" />
                 <Setter Property="Padding" Value="5" />
@@ -80,6 +86,37 @@
                     </Setter.Value>
                 </Setter>
             </Style>
+
+            <!-- Empty Image List Message Style -->
+            <Style x:Key="EmptyImageListMessageStyle" TargetType="TextBlock">
+                <Setter Property="HorizontalAlignment" Value="Center" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="Foreground" Value="{DynamicResource MahApps.Brushes.Gray5}" />
+                <Setter Property="Visibility" Value="Collapsed" />
+                <Setter Property="Text" Value="Select a missing cover from the list to see suggestions." />
+                <Style.Triggers>
+                    <MultiDataTrigger>
+                        <MultiDataTrigger.Conditions>
+                            <Condition
+                                Binding="{Binding ElementName=ImageScrollViewer, Path=DataContext.(gameCoverScraper:MainWindow.PanelImages).Count}"
+                                Value="0" />
+                            <Condition Binding="{Binding IsSearching}" Value="False" />
+                        </MultiDataTrigger.Conditions>
+                        <Setter Property="Visibility" Value="Visible" />
+                    </MultiDataTrigger>
+                </Style.Triggers>
+            </Style>
+
+            <!-- CollectionViewSources -->
+            <CollectionViewSource x:Key="SortedExtensions" Source="{Binding SupportedExtensions}" >
+                <CollectionViewSource.SortDescriptions>
+                    <componentModel:SortDescription PropertyName="." Direction="Ascending"/>
+                </CollectionViewSource.SortDescriptions>
+            </CollectionViewSource>
+
+            <!-- Colors -->
+            <SolidColorBrush x:Key="ListBoxBorderBrush" Color="{DynamicResource MahApps.Colors.Gray6}" />
+
         </ResourceDictionary>
     </Application.Resources>
 </Application>
