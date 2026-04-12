@@ -193,12 +193,16 @@ Access detailed logs via:
 ## 🙏 Acknowledgments
 
 -   **MahApps.Metro** for the beautiful WPF UI framework.
--   **SixLabors.ImageSharp** for robust image loading and conversion (used for automatic PNG conversion).
+-   **Magick.NET** (ImageMagick) for robust image loading and conversion (used for automatic PNG conversion).
 -   **MessagePack** for efficient binary serialization.
 -   **MAME** team for the comprehensive arcade game database.
 -   **Microsoft.Web.WebView2** for embedding web content.
 -   **AngleSharp** for HTML parsing.
 -   **Polly** for transient fault handling and retries.
+
+## 📄 License
+
+This project is licensed under the **GNU General Public License v3.0** - see the [LICENSE.txt](LICENSE.txt) file for details.
 
 ## 📞 Support
 
