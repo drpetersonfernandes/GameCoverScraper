@@ -1583,11 +1583,26 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         new AboutWindow().ShowDialog();
     }
 
-    private static void MainWindow_Closing(object? sender, CancelEventArgs e)
+    private void MainWindow_Closing(object? sender, CancelEventArgs e)
     {
-        // ForceClose sets the flag to allow the window to close properly
-        // Close() is not needed as ForceClose() already handles the cleanup
+        // ForceClose sets the flag to allow the debug window to close properly
         App.LogWindow?.ForceClose();
+
+        // Cancel any ongoing search operations
+        var oldCts = Interlocked.Exchange(ref _searchCts, null);
+        oldCts?.Cancel();
+        oldCts?.Dispose();
+
+        // Stop timers
+        _selectionDelayTimer?.Stop();
+        _statusMessageTimer?.Stop();
+
+        // Stop FileSystemWatcher
+        if (_imageFolderWatcher != null)
+        {
+            _imageFolderWatcher.EnableRaisingEvents = false;
+            _imageFolderWatcher.Created -= OnImageFileCreated;
+        }
     }
 
     private async void SaveImage_Click(object sender, RoutedEventArgs e)
@@ -1689,8 +1704,48 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         }
 
         _imageFolderWatcher?.Dispose();
-        WebView?.Dispose();
+
+        // Properly dispose WebView2 to prevent process from staying alive
+        DisposeWebView();
+
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Properly disposes the WebView2 control to ensure the process can exit.
+    /// WebView2 can keep the application running if not cleaned up properly.
+    /// </summary>
+    private void DisposeWebView()
+    {
+        if (WebView == null) return;
+
+        try
+        {
+            AppLogger.Log("Disposing WebView2...");
+
+            // Stop any ongoing navigation and navigate to blank page
+            // This helps terminate any running JavaScript or pending operations
+            if (WebView.CoreWebView2 != null)
+            {
+                try
+                {
+                    WebView.Stop();
+                    WebView.Source = new Uri("about:blank");
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.Log($"Warning: Error stopping WebView2 navigation: {ex.Message}");
+                }
+            }
+
+            // Dispose the WebView2 control
+            WebView.Dispose();
+            AppLogger.Log("WebView2 disposed successfully.");
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Log($"Error disposing WebView2: {ex.Message}");
+        }
     }
 
     // Matches parenthesized or bracketed text: (content) or [content]

@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using ControlzEx.Theming;
 using GameCoverScraper.Managers;
 using GameCoverScraper.Services;
@@ -101,6 +101,16 @@ public partial class App
     {
         AppLogger.Log("Application exiting.");
 
+        // Close all windows to ensure nothing keeps the process alive
+        foreach (var window in Current.Windows)
+        {
+            if (window is Window w)
+            {
+                AppLogger.Log($"Closing window: {w.GetType().Name}");
+                w.Close();
+            }
+        }
+
         // Dispose the DebugWindow if it exists
         if (LogWindow != null)
         {
@@ -110,6 +120,7 @@ public partial class App
         }
 
         HttpClientHelper.Dispose(); // Clean up the shared HttpClient
+
         base.OnExit(e);
     }
 }
