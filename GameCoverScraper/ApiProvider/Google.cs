@@ -116,6 +116,15 @@ public class Google
                         "1. Your API Key is incorrect.\n" +
                         "2. Your daily free limit has been reached.", forbiddenEx);
                 }
+                case HttpStatusCode.BadRequest:
+                {
+                    AppLogger.Log($"{logMessagePrefix} Bad Request (400).");
+                    var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                    var badRequestEx = new HttpRequestException("Response status code does not indicate success: 400 (Bad Request).", null, HttpStatusCode.BadRequest);
+                    _ = BugReport.LogErrorAsync(badRequestEx, $"HTTP error when calling {ProviderName} API: Bad Request (400). Response body: {errorBody}");
+                    throw new InvalidOperationException(
+                        $"{ProviderName} API error: Invalid request. Please check your API key and Search Engine ID configuration.", badRequestEx);
+                }
             }
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken);

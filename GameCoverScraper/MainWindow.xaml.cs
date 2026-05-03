@@ -488,44 +488,71 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     {
         try
         {
-            if (_isWebViewInitializing || WebView.CoreWebView2 != null) return;
+            if (_isWebViewInitializing || WebView?.CoreWebView2 != null) return;
 
             _isWebViewInitializing = true;
 
             try
             {
-                AppLogger.Log("Initializing WebView2...");
+                const int maxRetries = 2;
+                var retryCount = 0;
+                var success = false;
 
-                // Use LocalAppData for the user data folder to avoid permission issues
-                // and potential "Operation aborted" errors if the default folder is locked or inaccessible.
-                var userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GameCoverScraper", "WebView2Data");
-
-                try
+                while (!success)
                 {
-                    if (!Directory.Exists(userDataFolder))
+                    try
                     {
-                        Directory.CreateDirectory(userDataFolder);
+                        AppLogger.Log($"Initializing WebView2 (attempt {retryCount + 1}/{maxRetries + 1})...");
+
+                        // Use LocalAppData for the user data folder to avoid permission issues
+                        // and potential "Operation aborted" errors if the default folder is locked or inaccessible.
+                        var userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GameCoverScraper", "WebView2Data");
+
+                        try
+                        {
+                            if (!Directory.Exists(userDataFolder))
+                            {
+                                Directory.CreateDirectory(userDataFolder);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            AppLogger.Log($"Warning: Could not create WebView2 user data folder: {ex.Message}. Falling back to default.");
+                            _ = BugReport.LogErrorAsync(ex, "Failed to create WebView2 user data folder.");
+                            userDataFolder = null; // Fallback to default if we can't create the folder
+                        }
+
+                        var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
+                        if (WebView != null)
+                        {
+                            await WebView.EnsureCoreWebView2Async(env);
+                            WebView.NavigationCompleted += WebView_NavigationCompleted;
+
+                            // Ensure right-click menus are enabled (this is the default, but good to be explicit)
+                            if (WebView.CoreWebView2 != null)
+                            {
+                                WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
+                                AppLogger.Log("WebView2 default context menus enabled.");
+                            }
+                        }
+
+                        AppLogger.Log("WebView2 initialized successfully.");
+                        success = true;
+                    }
+                    catch (COMException ex) when (ex.HResult == unchecked((int)0x80004004)) // E_ABORT
+                    {
+                        retryCount++;
+                        if (retryCount <= maxRetries)
+                        {
+                            AppLogger.Log($"WebView2 initialization aborted (E_ABORT), retrying in 500ms... (attempt {retryCount}/{maxRetries})");
+                            await Task.Delay(500);
+                        }
+                        else
+                        {
+                            throw;
+                        }
                     }
                 }
-                catch (Exception ex)
-                {
-                    AppLogger.Log($"Warning: Could not create WebView2 user data folder: {ex.Message}. Falling back to default.");
-                    _ = BugReport.LogErrorAsync(ex, "Failed to create WebView2 user data folder.");
-                    userDataFolder = null; // Fallback to default if we can't create the folder
-                }
-
-                var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
-                await WebView.EnsureCoreWebView2Async(env);
-                WebView.NavigationCompleted += WebView_NavigationCompleted;
-
-                // Ensure right-click menus are enabled (this is the default, but good to be explicit)
-                if (WebView.CoreWebView2 != null)
-                {
-                    WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
-                    AppLogger.Log("WebView2 default context menus enabled.");
-                }
-
-                AppLogger.Log("WebView2 initialized successfully.");
             }
             catch (WebView2RuntimeNotFoundException ex)
             {
@@ -556,14 +583,33 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             }
             catch (COMException ex) when (ex.HResult == unchecked((int)0x80004004)) // E_ABORT
             {
-                AppLogger.Log("WebView2 initialization was aborted (E_ABORT). This might happen if the control is not yet in the visual tree or if multiple initializations are attempted.");
-                _ = BugReport.LogErrorAsync(ex, "WebView2 initialization was aborted (E_ABORT).");
+                AppLogger.Log("WebView2 initialization was aborted (E_ABORT) after all retry attempts.");
+                _ = BugReport.LogErrorAsync(ex, "WebView2 initialization was aborted (E_ABORT) after all retry attempts.");
 
-                MessageBox.Show(
-                    "The web browser component initialization was aborted.\n\n" +
-                    "This can occur if the component is already being initialized or if there are permission issues with the data folder.\n\n" +
-                    "Please try restarting the application.",
-                    "WebView2 Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                // The Evergreen Bootstrapper is a small installer that downloads and installs the latest compatible WebView2 Runtime.
+                const string webView2DownloadUrl = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
+
+                var result = MessageBox.Show(
+                    "The web browser component (Microsoft Edge WebView2 Runtime) is required for web search functionality, but it could not be initialized.\n\n" +
+                    "This can happen if the component is not installed, is outdated, or if there are permission issues with the data folder.\n\n" +
+                    "Would you like to download it from Microsoft's official website now?",
+                    "WebView2 Initialization Failed", MessageBoxButton.YesNo, MessageBoxImage.Error);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    try
+                    {
+                        Process.Start(new ProcessStartInfo(webView2DownloadUrl) { UseShellExecute = true });
+                        AppLogger.Log($"Opened WebView2 Runtime download URL for user: {webView2DownloadUrl}");
+                    }
+                    catch (Exception linkEx)
+                    {
+                        AppLogger.Log($"Failed to open WebView2 download link: {linkEx.Message}");
+                        _ = BugReport.LogErrorAsync(linkEx, "Failed to open WebView2 download link.");
+                        MessageBox.Show($"Could not open the download link automatically. Please visit the following URL in your browser:\n\n{webView2DownloadUrl}",
+                            "Link Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                }
             }
             catch (Exception ex)
             {
