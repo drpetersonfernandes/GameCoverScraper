@@ -36,6 +36,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     private string? _pendingStatusMessage;
     private bool _isStatusMessageTimed;
     private bool _isWebViewInitializing;
+    private DateTime _lastRemoveTime = DateTime.MinValue;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -724,7 +725,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
     private void LstMissingImages_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Delete && LstMissingImages.SelectedItem != null)
+        if (e is { Key: Key.Delete, IsRepeat: false } && LstMissingImages.SelectedItem != null)
         {
             e.Handled = true;
             RemoveSelectedItem();
@@ -1419,6 +1420,12 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
     private void RemoveSelectedItem()
     {
+        var now = DateTime.UtcNow;
+        if ((now - _lastRemoveTime).TotalMilliseconds < 300)
+            return;
+
+        _lastRemoveTime = now;
+
         if (LstMissingImages.SelectedItem is string itemToRemove)
         {
             AppLogger.Log($"Removing '{itemToRemove}' from list via UI action.");
