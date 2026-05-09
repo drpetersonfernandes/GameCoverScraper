@@ -45,6 +45,10 @@ public static class ApplicationStatsService
         {
             AppLogger.Log("Application stats request timed out.");
         }
+        catch (HttpRequestException ex)
+        {
+            AppLogger.Log($"Failed to record application stats (network error): {ex.Message}");
+        }
         catch (Exception ex)
         {
             AppLogger.Log($"Failed to record application stats: {ex.Message}");
