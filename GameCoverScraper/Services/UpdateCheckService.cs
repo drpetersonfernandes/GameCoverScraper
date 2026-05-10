@@ -104,7 +104,11 @@ public static class UpdateCheckService
 
     private static Version? ParseVersion(string tagName)
     {
-        var versionString = tagName.TrimStart('v', 'V');
+        var versionString = tagName
+            .TrimStart('v', 'V')
+            .Replace("release_", "", StringComparison.OrdinalIgnoreCase)
+            .Replace("release-", "", StringComparison.OrdinalIgnoreCase)
+            .TrimStart('v', 'V');
 
         // Try parsing as-is
         if (Version.TryParse(versionString, out var version))
