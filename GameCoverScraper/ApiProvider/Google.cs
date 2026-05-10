@@ -35,7 +35,7 @@ public class Google
         throw new InvalidOperationException("Google API Key is not set. Please configure it in API Settings.");
     }
 
-    private static string BuildRequestUrl(string searchQuery, SettingsManager settingsManager)
+    internal static string BuildRequestUrl(string searchQuery, SettingsManager settingsManager)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(searchQuery);
         var encodedSearchQuery = HttpUtility.UrlEncode(searchQuery.Trim());
@@ -54,12 +54,12 @@ public class Google
         return $"https://www.googleapis.com/customsearch/v1?q={encodedSearchQuery}&cx={HttpUtility.UrlEncode(settingsManager.GoogleSearchEngineId)}&num={MaxResults}&searchType=image&key={HttpUtility.UrlEncode(settingsManager.GoogleKey)}";
     }
 
-    private static GoogleSearchResult? DeserializeResponse(string json, JsonSerializerOptions jsonOptions)
+    internal static GoogleSearchResult? DeserializeResponse(string json, JsonSerializerOptions jsonOptions)
     {
         return JsonSerializer.Deserialize<GoogleSearchResult>(json, jsonOptions);
     }
 
-    private static List<ImageData> MapToImageData(GoogleSearchResult? searchResults)
+    internal static List<ImageData> MapToImageData(GoogleSearchResult? searchResults)
     {
         if (searchResults?.Items != null)
         {
@@ -159,7 +159,7 @@ public class Google
         }
     }
 
-    private static string FormatImageName(string input)
+    internal static string FormatImageName(string input)
     {
         if (Uri.IsWellFormedUriString(input, UriKind.Absolute))
         {

@@ -4,6 +4,7 @@ using Xunit;
 
 namespace GameCoverScraper.Tests.Managers;
 
+[Collection("SettingsManager")]
 public class SettingsManagerTests : IDisposable
 {
     private readonly string _originalSettingsPath;

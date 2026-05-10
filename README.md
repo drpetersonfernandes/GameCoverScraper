@@ -197,8 +197,6 @@ Access detailed logs via:
 -   **MessagePack** for efficient binary serialization.
 -   **MAME** team for the comprehensive arcade game database.
 -   **Microsoft.Web.WebView2** for embedding web content.
--   **AngleSharp** for HTML parsing.
--   **Polly** for transient fault handling and retries.
 
 ## 📄 License
 

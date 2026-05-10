@@ -15,6 +15,7 @@
         <DebugSymbols>true</DebugSymbols>
         <IsPackable>false</IsPackable>
         <NeutralLanguage>en</NeutralLanguage>
+        <Company>PureLogicCode.com</Company>
     </PropertyGroup>
 
     <ItemGroup>

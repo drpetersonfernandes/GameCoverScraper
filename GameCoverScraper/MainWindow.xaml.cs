@@ -10,7 +10,6 @@ using ControlzEx.Theming;
 using Microsoft.Win32;
 using System.Windows.Threading;
 using MessageBox = System.Windows.MessageBox;
-using System.Text.RegularExpressions;
 using System.Windows.Documents;
 using System.Windows.Input;
 using GameCoverScraper.ApiProvider;
@@ -136,6 +135,9 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
             // Handle startup arguments
             HandleStartupArguments();
+
+            // Check for updates in the background (non-blocking)
+            _ = CheckForUpdatesOnStartupAsync();
 
             AppLogger.Log("MainWindow_LoadedAsync completed.");
         }
@@ -1062,58 +1064,6 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         AppLogger.Log("Selection change debounce timer started.");
     }
 
-    /// <summary>
-    /// Cleans a ROM filename to create a better web search query.
-    /// Removes common emulator tags like (USA), [!], (Rev A), etc.
-    /// </summary>
-    /// <param name="fileName">The original filename.</param>
-    /// <returns>A cleaner string for searching.</returns>
-    private static string CleanSearchQuery(string fileName)
-    {
-        // This regex matches common patterns in parentheses or square brackets.
-        // e.g., (USA), (Europe), (Japan), (Brazil), (En,Ja), [!], (Rev A), (v1.1), (Unl), (Mega Drive 4)
-        var cleanedName = MyRegex().Replace(fileName, "").Trim();
-
-        // If cleaning removed everything (unlikely), fall back to the original name
-        return string.IsNullOrWhiteSpace(cleanedName) ? fileName : cleanedName;
-    }
-
-    /// <summary>
-    /// Sanitizes a filename to prevent path traversal attacks.
-    /// Removes path separator characters and other potentially dangerous characters.
-    /// </summary>
-    /// <param name="fileName">The original filename.</param>
-    /// <returns>A sanitized filename safe for use in path construction.</returns>
-    private static string SanitizeFileName(string fileName)
-    {
-        if (string.IsNullOrWhiteSpace(fileName))
-        {
-            return "unnamed";
-        }
-
-        // Remove path traversal sequences and invalid path characters
-        var invalidChars = Path.GetInvalidFileNameChars();
-
-        // Iteratively remove ".." to prevent traversal attacks (e.g., "...." -> "..")
-        var sanitized = fileName;
-        while (sanitized.Contains(".."))
-        {
-            sanitized = sanitized.Replace("..", "");
-        }
-
-        sanitized = new string(sanitized
-            .Replace("/", "")
-            .Replace("\\", "")
-            .Select(c => invalidChars.Contains(c) ? '_' : c)
-            .ToArray());
-
-        // Trim whitespace and dots from ends
-        sanitized = sanitized.Trim().TrimEnd('.');
-
-        // Ensure we have something left
-        return string.IsNullOrWhiteSpace(sanitized) ? "unnamed" : sanitized;
-    }
-
     private void SelectionDelayTimer_Tick(object? sender, EventArgs e)
     {
         // Fire-and-forget async operation to avoid deadlock risk
@@ -1155,7 +1105,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             }
             else
             {
-                searchTerm = CleanSearchQuery(selectedFile);
+                searchTerm = SearchQueryHelper.CleanSearchQuery(selectedFile);
                 AppLogger.Log($"Using cleaned filename for search: '{selectedFile}' -> '{searchTerm}'");
             }
 
@@ -1611,6 +1561,141 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         new AboutWindow().ShowDialog();
     }
 
+    private async void CheckForUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            AppLogger.Log("Check for Updates menu item clicked.");
+            StatusMessageText = "Checking for updates...";
+
+            try
+            {
+                var updateInfo = await UpdateCheckService.CheckForUpdateAsync().ConfigureAwait(false);
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    if (updateInfo.IsUpdateAvailable)
+                    {
+                        ShowUpdateNotification(updateInfo);
+                    }
+                    else
+                    {
+                        MessageBox.Show(
+                            $"You are running the latest version (v{updateInfo.CurrentVersion}).",
+                            "No Updates Available",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+                        StatusMessageText = "Application is up to date.";
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Log($"Error checking for updates: {ex.Message}");
+                _ = BugReport.LogErrorAsync(ex, "Error in CheckForUpdates_Click.");
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    MessageBox.Show(
+                        "Unable to check for updates. Please check your internet connection and try again.",
+                        "Update Check Failed",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    StatusMessageText = "Update check failed.";
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Log($"Error checking for updates: {ex.Message}");
+            _ = BugReport.LogErrorAsync(ex, "Error in CheckForUpdates_Click.");
+        }
+    }
+
+    private async Task CheckForUpdatesOnStartupAsync()
+    {
+        try
+        {
+            // Wait a few seconds to let the application fully load
+            await Task.Delay(3000).ConfigureAwait(false);
+
+            AppLogger.Log("Checking for updates on startup...");
+            var updateInfo = await UpdateCheckService.CheckForUpdateAsync().ConfigureAwait(false);
+
+            if (updateInfo.IsUpdateAvailable)
+            {
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    StatusMessageText = $"Update available: v{updateInfo.LatestVersion}";
+                    ShowUpdateNotification(updateInfo);
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Log($"Startup update check failed: {ex.Message}");
+            // Silently fail - don't bother the user on startup if the check fails
+        }
+    }
+
+    private void ShowUpdateNotification(UpdateInfo updateInfo)
+    {
+        var releaseNotesPreview = string.Empty;
+        if (!string.IsNullOrWhiteSpace(updateInfo.ReleaseNotes))
+        {
+            var lines = updateInfo.ReleaseNotes.Split('\n');
+            releaseNotesPreview = string.Join("\n", lines.Take(10));
+            if (lines.Length > 10)
+            {
+                releaseNotesPreview += "\n...";
+            }
+        }
+
+        var message = $"A new version of GameCoverScraper is available!\n\n" +
+                      $"Current version: v{updateInfo.CurrentVersion}\n" +
+                      $"Latest version:  v{updateInfo.LatestVersion}\n";
+
+        if (!string.IsNullOrWhiteSpace(updateInfo.PublishedAt))
+        {
+            message += $"Published:       {updateInfo.PublishedAt}\n";
+        }
+
+        if (!string.IsNullOrWhiteSpace(releaseNotesPreview))
+        {
+            message += $"\nRelease notes:\n{releaseNotesPreview}\n";
+        }
+
+        message += "\nWould you like to open the download page?";
+
+        var result = MessageBox.Show(
+            message,
+            "Update Available",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Information);
+
+        if (result == MessageBoxResult.Yes)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo(updateInfo.ReleaseUrl) { UseShellExecute = true });
+                AppLogger.Log($"Opened release URL: {updateInfo.ReleaseUrl}");
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Log($"Failed to open release URL: {ex.Message}");
+                _ = BugReport.LogErrorAsync(ex, "Failed to open release URL.");
+                MessageBox.Show(
+                    $"Could not open the download page. Please visit:\n\n{updateInfo.ReleaseUrl}",
+                    "Link Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+        }
+
+        StatusMessageText = updateInfo.IsUpdateAvailable
+            ? $"Update available: v{updateInfo.LatestVersion}"
+            : "Application is up to date.";
+    }
+
     private void MainWindow_Closing(object? sender, CancelEventArgs e)
     {
         // ForceClose sets the flag to allow the debug window to close properly
@@ -1654,7 +1739,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             }
 
             // Sanitize filename to prevent path traversal attacks
-            var safeFileName = SanitizeFileName(_selectedGameFileName);
+            var safeFileName = SearchQueryHelper.SanitizeFileName(_selectedGameFileName);
 
             StatusMessageText = $"Saving image for '{safeFileName}'...";
             var localPath = Path.Combine(_imageFolderPath, safeFileName + ".png");
@@ -1771,8 +1856,4 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             _ = BugReport.LogErrorAsync(ex, "Error disposing WebView2.");
         }
     }
-
-    // Matches parenthesized or bracketed text: (content) or [content]
-    [GeneratedRegex(@"\s*(\(.*?\)|\[.*?\])")]
-    private static partial Regex MyRegex();
 }
