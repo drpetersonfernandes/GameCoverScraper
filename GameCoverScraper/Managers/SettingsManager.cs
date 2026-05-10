@@ -16,28 +16,168 @@ public class SettingsManager
 
     public int ThumbnailSize
     {
-        get => _thumbnailSize;
+        get
+        {
+            lock (SettingsLock)
+            {
+                return _thumbnailSize;
+            }
+        }
         set
         {
-            if (value is < MinThumbnailSize or > MaxThumbnailSize)
-                throw new ArgumentOutOfRangeException(nameof(value), $"Thumbnail size must be between {MinThumbnailSize} and {MaxThumbnailSize}.");
+            lock (SettingsLock)
+            {
+                if (value is < MinThumbnailSize or > MaxThumbnailSize)
+                    throw new ArgumentOutOfRangeException(nameof(value), $"Thumbnail size must be between {MinThumbnailSize} and {MaxThumbnailSize}.");
 
-            _thumbnailSize = value;
+                _thumbnailSize = value;
+            }
         }
     }
 
-    public string SearchEngine { get; set; } = DefaultSearchEngine;
-    private const string DefaultSearchEngine = "BingWeb";
-    public string BaseTheme { get; set; } = DefaultBaseTheme;
-    private const string DefaultBaseTheme = "Light";
-    public string AccentColor { get; set; } = DefaultAccentColor;
-    private const string DefaultAccentColor = "Blue";
-    public bool UseMameDescriptions { get; set; }
-    public List<string> SupportedExtensions { get; set; } = new();
+    public string SearchEngine
+    {
+        get
+        {
+            lock (SettingsLock)
+            {
+                return _searchEngine;
+            }
+        }
+        set
+        {
+            lock (SettingsLock)
+            {
+                _searchEngine = value;
+            }
+        }
+    }
 
-    public string BugReportApiKey { get; set; } = DefaultBugReportApiKey;
+    private string _searchEngine = DefaultSearchEngine;
+    private const string DefaultSearchEngine = "BingWeb";
+
+    public string BaseTheme
+    {
+        get
+        {
+            lock (SettingsLock)
+            {
+                return _baseTheme;
+            }
+        }
+        set
+        {
+            lock (SettingsLock)
+            {
+                _baseTheme = value;
+            }
+        }
+    }
+
+    private string _baseTheme = DefaultBaseTheme;
+    private const string DefaultBaseTheme = "Light";
+
+    public string AccentColor
+    {
+        get
+        {
+            lock (SettingsLock)
+            {
+                return _accentColor;
+            }
+        }
+        set
+        {
+            lock (SettingsLock)
+            {
+                _accentColor = value;
+            }
+        }
+    }
+
+    private string _accentColor = DefaultAccentColor;
+    private const string DefaultAccentColor = "Blue";
+
+    public bool UseMameDescriptions
+    {
+        get
+        {
+            lock (SettingsLock)
+            {
+                return _useMameDescriptions;
+            }
+        }
+        set
+        {
+            lock (SettingsLock)
+            {
+                _useMameDescriptions = value;
+            }
+        }
+    }
+
+    private bool _useMameDescriptions;
+
+    public List<string> SupportedExtensions
+    {
+        get
+        {
+            lock (SettingsLock)
+            {
+                return _supportedExtensions;
+            }
+        }
+        set
+        {
+            lock (SettingsLock)
+            {
+                _supportedExtensions = value;
+            }
+        }
+    }
+
+    private List<string> _supportedExtensions = new();
+
+    public string BugReportApiKey
+    {
+        get
+        {
+            lock (SettingsLock)
+            {
+                return _bugReportApiKey;
+            }
+        }
+        set
+        {
+            lock (SettingsLock)
+            {
+                _bugReportApiKey = value;
+            }
+        }
+    }
+
+    private string _bugReportApiKey = DefaultBugReportApiKey;
     private const string DefaultBugReportApiKey = "hjh7yu6t56tyr540o9u8767676r5674534453235264c75b6t7ggghgg76trf564e";
-    public string BugReportApiUrl { get; set; } = DefaultBugReportApiUrl;
+
+    public string BugReportApiUrl
+    {
+        get
+        {
+            lock (SettingsLock)
+            {
+                return _bugReportApiUrl;
+            }
+        }
+        set
+        {
+            lock (SettingsLock)
+            {
+                _bugReportApiUrl = value;
+            }
+        }
+    }
+
+    private string _bugReportApiUrl = DefaultBugReportApiUrl;
     private const string DefaultBugReportApiUrl = "https://www.purelogiccode.com/bugreport/api/send-bug-report";
 
     private static readonly List<string> DefaultSupportedExtensions =
@@ -46,8 +186,45 @@ public class SettingsManager
         "md", "smd", "gen", "32x", "sgg", "sg", "sc", "ms", "gg", "rom", "bin"
     ];
 
-    public string GoogleKey { get; set; } = string.Empty;
-    public string GoogleSearchEngineId { get; set; } = "d30e97188f5914611";
+    public string GoogleKey
+    {
+        get
+        {
+            lock (SettingsLock)
+            {
+                return _googleKey;
+            }
+        }
+        set
+        {
+            lock (SettingsLock)
+            {
+                _googleKey = value;
+            }
+        }
+    }
+
+    private string _googleKey = string.Empty;
+
+    public string GoogleSearchEngineId
+    {
+        get
+        {
+            lock (SettingsLock)
+            {
+                return _googleSearchEngineId;
+            }
+        }
+        set
+        {
+            lock (SettingsLock)
+            {
+                _googleSearchEngineId = value;
+            }
+        }
+    }
+
+    private string _googleSearchEngineId = "d30e97188f5914611";
 
     public void LoadSettings()
     {
@@ -57,7 +234,7 @@ public class SettingsManager
             if (!File.Exists(SettingsFilePath))
             {
                 AppLogger.Log("settings.xml not found. Creating and saving default settings.");
-                SupportedExtensions = new List<string>(DefaultSupportedExtensions);
+                _supportedExtensions = new List<string>(DefaultSupportedExtensions);
                 SaveSettings();
                 return;
             }
@@ -67,28 +244,29 @@ public class SettingsManager
                 var doc = XDocument.Load(SettingsFilePath);
                 var root = doc.Element("Settings") ?? throw new InvalidOperationException("Invalid settings file format.");
 
-                ThumbnailSize = int.Parse(root.Element("ThumbnailSize")?.Value ?? DefaultThumbnailSize.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
-                SearchEngine = root.Element("SearchEngine")?.Value ?? DefaultSearchEngine;
-                BaseTheme = root.Element("BaseTheme")?.Value ?? DefaultBaseTheme;
-                AccentColor = root.Element("AccentColor")?.Value ?? DefaultAccentColor;
-                UseMameDescriptions = bool.Parse(root.Element("UseMameDescriptions")?.Value ?? "false");
-                BugReportApiKey = root.Element("BugReportApiKey")?.Value ?? DefaultBugReportApiKey;
-                BugReportApiUrl = root.Element("BugReportApiUrl")?.Value ?? DefaultBugReportApiUrl;
-                SupportedExtensions = root.Element("SupportedExtensions")?
+                var parsedSize = int.Parse(root.Element("ThumbnailSize")?.Value ?? DefaultThumbnailSize.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
+                _thumbnailSize = parsedSize is >= MinThumbnailSize and <= MaxThumbnailSize ? parsedSize : DefaultThumbnailSize;
+                _searchEngine = root.Element("SearchEngine")?.Value ?? DefaultSearchEngine;
+                _baseTheme = root.Element("BaseTheme")?.Value ?? DefaultBaseTheme;
+                _accentColor = root.Element("AccentColor")?.Value ?? DefaultAccentColor;
+                _useMameDescriptions = bool.Parse(root.Element("UseMameDescriptions")?.Value ?? "false");
+                _bugReportApiKey = root.Element("BugReportApiKey")?.Value ?? DefaultBugReportApiKey;
+                _bugReportApiUrl = root.Element("BugReportApiUrl")?.Value ?? DefaultBugReportApiUrl;
+                _supportedExtensions = root.Element("SupportedExtensions")?
                     .Elements("Extension")
                     .Select(static x => x.Value)
                     .ToList() ?? new List<string>();
-                GoogleKey = root.Element("GoogleKey")?.Value ?? string.Empty;
-                GoogleSearchEngineId = root.Element("GoogleSearchEngineId")?.Value ?? "d30e97188f5914611";
+                _googleKey = root.Element("GoogleKey")?.Value ?? string.Empty;
+                _googleSearchEngineId = root.Element("GoogleSearchEngineId")?.Value ?? "d30e97188f5914611";
 
                 AppLogger.Log("Settings loaded successfully.");
-                if (SupportedExtensions.Count != 0)
+                if (_supportedExtensions.Count != 0)
                 {
                     return;
                 }
 
                 AppLogger.Log("Supported extensions list was empty, populating with defaults.");
-                SupportedExtensions = new List<string>(DefaultSupportedExtensions);
+                _supportedExtensions = new List<string>(DefaultSupportedExtensions);
 
                 SaveSettings();
             }
@@ -97,16 +275,16 @@ public class SettingsManager
                 AppLogger.Log($"Error loading settings.xml. Reverting to defaults. Error: {ex.Message}");
                 _ = BugReport.LogErrorAsync(ex, "Error loading settings.xml. Reverting to defaults.");
 
-                ThumbnailSize = DefaultThumbnailSize;
-                SearchEngine = DefaultSearchEngine;
-                BaseTheme = DefaultBaseTheme;
-                AccentColor = DefaultAccentColor;
-                UseMameDescriptions = false;
-                BugReportApiKey = DefaultBugReportApiKey;
-                BugReportApiUrl = DefaultBugReportApiUrl;
-                SupportedExtensions = new List<string>(DefaultSupportedExtensions);
-                GoogleKey = string.Empty;
-                GoogleSearchEngineId = "d30e97188f5914611";
+                _thumbnailSize = DefaultThumbnailSize;
+                _searchEngine = DefaultSearchEngine;
+                _baseTheme = DefaultBaseTheme;
+                _accentColor = DefaultAccentColor;
+                _useMameDescriptions = false;
+                _bugReportApiKey = DefaultBugReportApiKey;
+                _bugReportApiUrl = DefaultBugReportApiUrl;
+                _supportedExtensions = new List<string>(DefaultSupportedExtensions);
+                _googleKey = string.Empty;
+                _googleSearchEngineId = "d30e97188f5914611";
 
                 SaveSettings();
             }
@@ -120,16 +298,16 @@ public class SettingsManager
             AppLogger.Log("Saving settings to settings.xml.");
             var doc = new XDocument(
                 new XElement("Settings",
-                    new XElement("ThumbnailSize", ThumbnailSize),
-                    new XElement("SearchEngine", SearchEngine),
-                    new XElement("BaseTheme", BaseTheme),
-                    new XElement("AccentColor", AccentColor),
-                    new XElement("UseMameDescriptions", UseMameDescriptions),
-                    new XElement("BugReportApiKey", BugReportApiKey),
-                    new XElement("BugReportApiUrl", BugReportApiUrl),
-                    new XElement("SupportedExtensions", SupportedExtensions.Select(static ext => new XElement("Extension", ext))),
-                    new XElement("GoogleKey", GoogleKey),
-                    new XElement("GoogleSearchEngineId", GoogleSearchEngineId)
+                    new XElement("ThumbnailSize", _thumbnailSize),
+                    new XElement("SearchEngine", _searchEngine),
+                    new XElement("BaseTheme", _baseTheme),
+                    new XElement("AccentColor", _accentColor),
+                    new XElement("UseMameDescriptions", _useMameDescriptions),
+                    new XElement("BugReportApiKey", _bugReportApiKey),
+                    new XElement("BugReportApiUrl", _bugReportApiUrl),
+                    new XElement("SupportedExtensions", _supportedExtensions.Select(static ext => new XElement("Extension", ext))),
+                    new XElement("GoogleKey", _googleKey),
+                    new XElement("GoogleSearchEngineId", _googleSearchEngineId)
                 )
             );
 

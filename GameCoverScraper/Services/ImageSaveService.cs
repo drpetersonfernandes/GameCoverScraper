@@ -23,7 +23,7 @@ public class ImageSaveService
             }
 
             await using var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-            return await ConvertStreamToPngAndSave(stream, outputPath).ConfigureAwait(false);
+            return await ConvertStreamToPngAndSaveAsync(stream, outputPath).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -40,7 +40,7 @@ public class ImageSaveService
     /// <param name="inputStream">The stream containing the source image data.</param>
     /// <param name="outputPath">The path where the PNG image will be saved.</param>
     /// <returns>True if conversion was successful, false otherwise.</returns>
-    public async Task<bool> ConvertStreamToPngAndSave(Stream inputStream, string outputPath)
+    public async Task<bool> ConvertStreamToPngAndSaveAsync(Stream inputStream, string outputPath)
     {
         var tempOutputPath = outputPath + ".tmp" + Guid.NewGuid().ToString("N")[..8];
         try

@@ -37,7 +37,7 @@ public class ImageSaveServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ConvertStreamToPngAndSaveWithValidImageStreamShouldSavePng()
+    public async Task ConvertStreamToPngAndSaveAsyncWithValidImageStreamShouldSavePng()
     {
         var service = new ImageSaveService();
         var outputPath = Path.Combine(_testOutputDir, "test_output.png");
@@ -48,14 +48,14 @@ public class ImageSaveServiceTests : IDisposable
         var bytes = image.ToByteArray();
         using var stream = new MemoryStream(bytes);
 
-        var result = await service.ConvertStreamToPngAndSave(stream, outputPath);
+        var result = await service.ConvertStreamToPngAndSaveAsync(stream, outputPath);
 
         result.Should().BeTrue();
         File.Exists(outputPath).Should().BeTrue();
     }
 
     [Fact]
-    public async Task ConvertStreamToPngAndSaveShouldCreateOutputDirectoryWhenMissing()
+    public async Task ConvertStreamToPngAndSaveAsyncShouldCreateOutputDirectoryWhenMissing()
     {
         var service = new ImageSaveService();
         var nestedDir = Path.Combine(_testOutputDir, "nested", "deep");
@@ -66,7 +66,7 @@ public class ImageSaveServiceTests : IDisposable
         var bytes = image.ToByteArray();
         using var stream = new MemoryStream(bytes);
 
-        var result = await service.ConvertStreamToPngAndSave(stream, outputPath);
+        var result = await service.ConvertStreamToPngAndSaveAsync(stream, outputPath);
 
         result.Should().BeTrue();
         Directory.Exists(nestedDir).Should().BeTrue();
@@ -74,14 +74,14 @@ public class ImageSaveServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ConvertStreamToPngAndSaveWithInvalidStreamShouldReturnFalse()
+    public async Task ConvertStreamToPngAndSaveAsyncWithInvalidStreamShouldReturnFalse()
     {
         var service = new ImageSaveService();
         var outputPath = Path.Combine(_testOutputDir, "invalid.png");
 
         using var stream = new MemoryStream([0x00, 0x01, 0x02]);
 
-        var result = await service.ConvertStreamToPngAndSave(stream, outputPath);
+        var result = await service.ConvertStreamToPngAndSaveAsync(stream, outputPath);
 
         result.Should().BeFalse();
     }

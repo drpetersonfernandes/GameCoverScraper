@@ -7,7 +7,7 @@ namespace GameCoverScraper;
 
 public partial class MainWindow
 {
-    private async Task HandleBingWebSearch(string searchQuery)
+    private async Task HandleBingWebSearchAsync(string searchQuery)
     {
         try
         {
@@ -41,8 +41,8 @@ public partial class MainWindow
         }
         catch (Exception ex)
         {
-            AppLogger.Log($"Error in HandleBingWebSearch: {ex.Message}");
-            _ = BugReport.LogErrorAsync(ex, "Error in HandleBingWebSearch.");
+            AppLogger.Log($"Error in HandleBingWebSearchAsync: {ex.Message}");
+            _ = BugReport.LogErrorAsync(ex, "Error in HandleBingWebSearchAsync.");
             await Dispatcher.InvokeAsync(() =>
             {
                 IsSearching = false;
@@ -52,7 +52,7 @@ public partial class MainWindow
         }
     }
 
-    private async Task HandleGoogleWebSearch(string searchQuery)
+    private async Task HandleGoogleWebSearchAsync(string searchQuery)
     {
         try
         {
@@ -86,8 +86,8 @@ public partial class MainWindow
         }
         catch (Exception ex)
         {
-            AppLogger.Log($"Error in HandleGoogleWebSearch: {ex.Message}");
-            _ = BugReport.LogErrorAsync(ex, "Error in HandleGoogleWebSearch.");
+            AppLogger.Log($"Error in HandleGoogleWebSearchAsync: {ex.Message}");
+            _ = BugReport.LogErrorAsync(ex, "Error in HandleGoogleWebSearchAsync.");
             await Dispatcher.InvokeAsync(() =>
             {
                 IsSearching = false;

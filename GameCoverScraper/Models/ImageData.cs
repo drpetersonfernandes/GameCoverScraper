@@ -18,8 +18,8 @@ public class ImageData : INotifyPropertyChanged
         get => _imageWidth;
         set
         {
-            if (value < 0)
-                throw new ArgumentOutOfRangeException(nameof(value), "Image width cannot be negative.");
+            if (value <= 0)
+                throw new ArgumentOutOfRangeException(nameof(value), "Image width must be positive.");
 
             _imageWidth = value;
         }
@@ -30,8 +30,8 @@ public class ImageData : INotifyPropertyChanged
         get => _imageHeight;
         set
         {
-            if (value < 0)
-                throw new ArgumentOutOfRangeException(nameof(value), "Image height cannot be negative.");
+            if (value <= 0)
+                throw new ArgumentOutOfRangeException(nameof(value), "Image height must be positive.");
 
             _imageHeight = value;
         }

@@ -37,11 +37,8 @@ public class Google
 
     private static string BuildRequestUrl(string searchQuery, SettingsManager settingsManager)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(searchQuery);
         var encodedSearchQuery = HttpUtility.UrlEncode(searchQuery.Trim());
-        if (string.IsNullOrEmpty(encodedSearchQuery))
-        {
-            throw new ArgumentException("Search query cannot be empty", nameof(searchQuery));
-        }
 
         if (string.IsNullOrEmpty(settingsManager.GoogleSearchEngineId))
         {
@@ -62,9 +59,8 @@ public class Google
         return JsonSerializer.Deserialize<GoogleSearchResult>(json, jsonOptions);
     }
 
-    private static List<ImageData> MapToImageData(object? deserializedResponse)
+    private static List<ImageData> MapToImageData(GoogleSearchResult? searchResults)
     {
-        var searchResults = deserializedResponse as GoogleSearchResult;
         if (searchResults?.Items != null)
         {
             return searchResults.Items.Select(static item => new ImageData
@@ -86,10 +82,11 @@ public class Google
     public async Task<List<ImageData>> FetchImagesFromGoogleAsync(string searchQuery, SettingsManager settingsManager, CancellationToken cancellationToken = default)
     {
         var requestUrl = BuildRequestUrl(searchQuery, settingsManager);
-        var response = await HttpClientHelper.Client.GetAsync(requestUrl, cancellationToken);
 
         const string logMessagePrefix = $"{ProviderName} API";
         AppLogger.Log($"{logMessagePrefix} Request: GET {requestUrl}");
+
+        using var response = await HttpClientHelper.Client.GetAsync(requestUrl, cancellationToken);
 
         try
         {

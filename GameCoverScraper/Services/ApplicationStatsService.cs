@@ -41,13 +41,15 @@ public static class ApplicationStatsService
                 AppLogger.Log($"Application stats API returned: {response.StatusCode}");
             }
         }
-        catch (TaskCanceledException)
+        catch (TaskCanceledException ex)
         {
             AppLogger.Log("Application stats request timed out.");
+            _ = BugReport.LogErrorAsync(ex, "Application stats request timed out.");
         }
         catch (HttpRequestException ex)
         {
             AppLogger.Log($"Failed to record application stats (network error): {ex.Message}");
+            _ = BugReport.LogErrorAsync(ex, "Failed to record application stats (network error).");
         }
         catch (Exception ex)
         {

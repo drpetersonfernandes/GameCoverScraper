@@ -21,7 +21,7 @@ public partial class SettingsWindow
         DataContext = new { SupportedExtensions = _supportedExtensions };
     }
 
-    private async void BtnAdd_Click(object sender, RoutedEventArgs e)
+    private async void BtnAdd_ClickAsync(object sender, RoutedEventArgs e)
     {
         try
         {
@@ -68,7 +68,7 @@ public partial class SettingsWindow
         }
         catch (Exception ex)
         {
-            _ = BugReport.LogErrorAsync(ex, "Error in method BtnAdd_Click");
+            _ = BugReport.LogErrorAsync(ex, "Error in method BtnAdd_ClickAsync");
         }
     }
 

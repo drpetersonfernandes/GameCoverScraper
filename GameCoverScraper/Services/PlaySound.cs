@@ -6,6 +6,7 @@ namespace GameCoverScraper.Services;
 public static class PlaySound
 {
     private static readonly string SoundPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "audio", "click.mp3");
+    private static readonly object Lock = new();
     private static MediaPlayer? _mediaPlayer;
 
     public static void PlayClickSound()
@@ -20,16 +21,17 @@ public static class PlaySound
                 return;
             }
 
-            // Clean up the previous MediaPlayer instance if it exists
-            CleanupMediaPlayer();
+            lock (Lock)
+            {
+                CleanupMediaPlayer();
 
-            // Create a new MediaPlayer instance
-            _mediaPlayer = new MediaPlayer();
-            _mediaPlayer.MediaEnded += MediaPlayer_MediaEnded;
-            _mediaPlayer.MediaFailed += MediaPlayer_MediaFailed;
-            _mediaPlayer.MediaOpened += MediaPlayer_MediaOpened;
+                _mediaPlayer = new MediaPlayer();
+                _mediaPlayer.MediaEnded += MediaPlayer_MediaEnded;
+                _mediaPlayer.MediaFailed += MediaPlayer_MediaFailed;
+                _mediaPlayer.MediaOpened += MediaPlayer_MediaOpened;
 
-            _mediaPlayer.Open(new Uri(SoundPath, UriKind.Absolute));
+                _mediaPlayer.Open(new Uri(SoundPath, UriKind.Absolute));
+            }
         }
         catch (Exception ex)
         {
@@ -37,20 +39,25 @@ public static class PlaySound
         }
     }
 
+    public static void Shutdown()
+    {
+        lock (Lock)
+        {
+            CleanupMediaPlayer();
+        }
+    }
+
     private static void CleanupMediaPlayer()
     {
         if (_mediaPlayer != null)
         {
-            // Remove event handlers
             _mediaPlayer.MediaEnded -= MediaPlayer_MediaEnded;
             _mediaPlayer.MediaFailed -= MediaPlayer_MediaFailed;
             _mediaPlayer.MediaOpened -= MediaPlayer_MediaOpened;
 
-            // Stop and close the player
             _mediaPlayer.Stop();
             _mediaPlayer.Close();
 
-            // Set to null to allow garbage collection
             _mediaPlayer = null;
         }
     }
@@ -60,7 +67,10 @@ public static class PlaySound
         if (sender is MediaPlayer player)
         {
             player.Close();
-            CleanupMediaPlayer();
+            lock (Lock)
+            {
+                CleanupMediaPlayer();
+            }
         }
     }
 
@@ -71,7 +81,10 @@ public static class PlaySound
             player.Close();
             AppLogger.Log($"Failed to play sound: {e.ErrorException.Message}");
             _ = BugReport.LogErrorAsync(e.ErrorException, $"Failed to play sound: {SoundPath}");
-            CleanupMediaPlayer();
+            lock (Lock)
+            {
+                CleanupMediaPlayer();
+            }
         }
     }
 

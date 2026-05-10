@@ -9,18 +9,21 @@
                       Title="GameCoverScraper"
                       MinWidth="900"
                       MinHeight="600"
-                      WindowStartupLocation="CenterScreen">
+                      WindowStartupLocation="CenterScreen"
+                      ToolTip="GameCoverScraper - Search and download cover art for your ROM collection">
 
-    <Window.Resources>
+    <controls:MetroWindow.Resources>
         <DataTemplate x:Key="ImageCellTemplate">
-            <Button Style="{StaticResource ImageSuggestionButtonStyle}" Click="SaveImage_Click">
+            <Button Style="{StaticResource ImageSuggestionButtonStyle}" Click="SaveImage_ClickAsync"
+                    ToolTip="Click to save this image as cover art">
                 <StackPanel Width="{Binding ThumbnailWidth}">
                     <Image Width="{Binding ThumbnailWidth}" Height="{Binding ThumbnailHeight}"
-                           Source="{Binding ImagePath}" />
+                           Source="{Binding ImagePath}" ToolTip="Preview of the cover art image" />
                     <TextBlock HorizontalAlignment="Center" Text="{Binding ImageName}" FontWeight="Bold"
                                Margin="0,5,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding ImageName}" />
-                    <TextBlock HorizontalAlignment="Center" Text="{Binding ImageFileSize}" />
-                    <TextBlock HorizontalAlignment="Center">
+                    <TextBlock HorizontalAlignment="Center" Text="{Binding ImageFileSize}"
+                               ToolTip="File size of this image" />
+                    <TextBlock HorizontalAlignment="Center" ToolTip="Image dimensions and format">
                         <TextBlock.Text>
                             <MultiBinding StringFormat="{}{0}x{1} ({2})">
                                 <Binding Path="ImageWidth" />
@@ -32,7 +35,7 @@
                 </StackPanel>
             </Button>
         </DataTemplate>
-    </Window.Resources>
+    </controls:MetroWindow.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -40,91 +43,91 @@
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <Menu Grid.Row="0" Name="MainMenu">
-            <MenuItem Header="Theme">
-                <MenuItem Header="Base Theme">
+        <Menu Grid.Row="0" Name="MainMenu" ToolTip="Main application menu">
+            <MenuItem Header="Theme" ToolTip="Change the application theme and accent colors">
+                <MenuItem Header="Base Theme" ToolTip="Select the base theme (Light or Dark)">
                     <MenuItem.Icon>
                         <Image Source="pack://application:,,,/images/theme.png" Width="16" Height="16" />
                     </MenuItem.Icon>
-                    <MenuItem x:Name="LightTheme" Header="Light" Click="ChangeBaseTheme_Click" IsCheckable="True" />
-                    <MenuItem x:Name="DarkTheme" Header="Dark" Click="ChangeBaseTheme_Click" IsCheckable="True" />
+                    <MenuItem x:Name="LightTheme" Header="Light" Click="ChangeBaseTheme_Click" IsCheckable="True" ToolTip="Switch to light theme" />
+                    <MenuItem x:Name="DarkTheme" Header="Dark" Click="ChangeBaseTheme_Click" IsCheckable="True" ToolTip="Switch to dark theme" />
                 </MenuItem>
-                <MenuItem x:Name="MenuAccentColors" Header="Accent Colors">
+                <MenuItem x:Name="MenuAccentColors" Header="Accent Colors" ToolTip="Choose an accent color for the application">
                     <MenuItem.Icon>
                         <Image Source="pack://application:,,,/images/theme.png" Width="16" Height="16" />
                     </MenuItem.Icon>
-                    <MenuItem x:Name="RedAccent" Header="Red" Click="ChangeAccentColor_Click" IsCheckable="True" />
-                    <MenuItem x:Name="GreenAccent" Header="Green" Click="ChangeAccentColor_Click" IsCheckable="True" />
-                    <MenuItem x:Name="BlueAccent" Header="Blue" Click="ChangeAccentColor_Click" IsCheckable="True" />
-                    <MenuItem x:Name="PurpleAccent" Header="Purple" Click="ChangeAccentColor_Click" IsCheckable="True" />
-                    <MenuItem x:Name="OrangeAccent" Header="Orange" Click="ChangeAccentColor_Click" IsCheckable="True" />
-                    <MenuItem x:Name="LimeAccent" Header="Lime" Click="ChangeAccentColor_Click" IsCheckable="True" />
+                    <MenuItem x:Name="RedAccent" Header="Red" Click="ChangeAccentColor_Click" IsCheckable="True" ToolTip="Set accent color to Red" />
+                    <MenuItem x:Name="GreenAccent" Header="Green" Click="ChangeAccentColor_Click" IsCheckable="True" ToolTip="Set accent color to Green" />
+                    <MenuItem x:Name="BlueAccent" Header="Blue" Click="ChangeAccentColor_Click" IsCheckable="True" ToolTip="Set accent color to Blue" />
+                    <MenuItem x:Name="PurpleAccent" Header="Purple" Click="ChangeAccentColor_Click" IsCheckable="True" ToolTip="Set accent color to Purple" />
+                    <MenuItem x:Name="OrangeAccent" Header="Orange" Click="ChangeAccentColor_Click" IsCheckable="True" ToolTip="Set accent color to Orange" />
+                    <MenuItem x:Name="LimeAccent" Header="Lime" Click="ChangeAccentColor_Click" IsCheckable="True" ToolTip="Set accent color to Lime" />
                     <MenuItem x:Name="EmeraldAccent" Header="Emerald" Click="ChangeAccentColor_Click"
-                              IsCheckable="True" />
-                    <MenuItem x:Name="TealAccent" Header="Teal" Click="ChangeAccentColor_Click" IsCheckable="True" />
-                    <MenuItem x:Name="CyanAccent" Header="Cyan" Click="ChangeAccentColor_Click" IsCheckable="True" />
-                    <MenuItem x:Name="CobaltAccent" Header="Cobalt" Click="ChangeAccentColor_Click" IsCheckable="True" />
-                    <MenuItem x:Name="IndigoAccent" Header="Indigo" Click="ChangeAccentColor_Click" IsCheckable="True" />
-                    <MenuItem x:Name="VioletAccent" Header="Violet" Click="ChangeAccentColor_Click" IsCheckable="True" />
-                    <MenuItem x:Name="PinkAccent" Header="Pink" Click="ChangeAccentColor_Click" IsCheckable="True" />
+                              IsCheckable="True" ToolTip="Set accent color to Emerald" />
+                    <MenuItem x:Name="TealAccent" Header="Teal" Click="ChangeAccentColor_Click" IsCheckable="True" ToolTip="Set accent color to Teal" />
+                    <MenuItem x:Name="CyanAccent" Header="Cyan" Click="ChangeAccentColor_Click" IsCheckable="True" ToolTip="Set accent color to Cyan" />
+                    <MenuItem x:Name="CobaltAccent" Header="Cobalt" Click="ChangeAccentColor_Click" IsCheckable="True" ToolTip="Set accent color to Cobalt" />
+                    <MenuItem x:Name="IndigoAccent" Header="Indigo" Click="ChangeAccentColor_Click" IsCheckable="True" ToolTip="Set accent color to Indigo" />
+                    <MenuItem x:Name="VioletAccent" Header="Violet" Click="ChangeAccentColor_Click" IsCheckable="True" ToolTip="Set accent color to Violet" />
+                    <MenuItem x:Name="PinkAccent" Header="Pink" Click="ChangeAccentColor_Click" IsCheckable="True" ToolTip="Set accent color to Pink" />
                     <MenuItem x:Name="MagentaAccent" Header="Magenta" Click="ChangeAccentColor_Click"
-                              IsCheckable="True" />
+                              IsCheckable="True" ToolTip="Set accent color to Magenta" />
                     <MenuItem x:Name="CrimsonAccent" Header="Crimson" Click="ChangeAccentColor_Click"
-                              IsCheckable="True" />
-                    <MenuItem x:Name="AmberAccent" Header="Amber" Click="ChangeAccentColor_Click" IsCheckable="True" />
-                    <MenuItem x:Name="YellowAccent" Header="Yellow" Click="ChangeAccentColor_Click" IsCheckable="True" />
-                    <MenuItem x:Name="BrownAccent" Header="Brown" Click="ChangeAccentColor_Click" IsCheckable="True" />
-                    <MenuItem x:Name="OliveAccent" Header="Olive" Click="ChangeAccentColor_Click" IsCheckable="True" />
-                    <MenuItem x:Name="SteelAccent" Header="Steel" Click="ChangeAccentColor_Click" IsCheckable="True" />
-                    <MenuItem x:Name="MauveAccent" Header="Mauve" Click="ChangeAccentColor_Click" IsCheckable="True" />
-                    <MenuItem x:Name="TaupeAccent" Header="Taupe" Click="ChangeAccentColor_Click" IsCheckable="True" />
-                    <MenuItem x:Name="SiennaAccent" Header="Sienna" Click="ChangeAccentColor_Click" IsCheckable="True" />
+                              IsCheckable="True" ToolTip="Set accent color to Crimson" />
+                    <MenuItem x:Name="AmberAccent" Header="Amber" Click="ChangeAccentColor_Click" IsCheckable="True" ToolTip="Set accent color to Amber" />
+                    <MenuItem x:Name="YellowAccent" Header="Yellow" Click="ChangeAccentColor_Click" IsCheckable="True" ToolTip="Set accent color to Yellow" />
+                    <MenuItem x:Name="BrownAccent" Header="Brown" Click="ChangeAccentColor_Click" IsCheckable="True" ToolTip="Set accent color to Brown" />
+                    <MenuItem x:Name="OliveAccent" Header="Olive" Click="ChangeAccentColor_Click" IsCheckable="True" ToolTip="Set accent color to Olive" />
+                    <MenuItem x:Name="SteelAccent" Header="Steel" Click="ChangeAccentColor_Click" IsCheckable="True" ToolTip="Set accent color to Steel" />
+                    <MenuItem x:Name="MauveAccent" Header="Mauve" Click="ChangeAccentColor_Click" IsCheckable="True" ToolTip="Set accent color to Mauve" />
+                    <MenuItem x:Name="TaupeAccent" Header="Taupe" Click="ChangeAccentColor_Click" IsCheckable="True" ToolTip="Set accent color to Taupe" />
+                    <MenuItem x:Name="SiennaAccent" Header="Sienna" Click="ChangeAccentColor_Click" IsCheckable="True" ToolTip="Set accent color to Sienna" />
                 </MenuItem>
             </MenuItem>
-            <MenuItem x:Name="ThumbnailSizeMenu" Header="Set Thumbnail Size">
-                <MenuItem Click="SetThumbnailSize_Click" Header="100 pixels" IsCheckable="True" />
-                <MenuItem Click="SetThumbnailSize_Click" Header="150 pixels" IsCheckable="True" />
-                <MenuItem Click="SetThumbnailSize_Click" Header="200 pixels" IsCheckable="True" />
-                <MenuItem Click="SetThumbnailSize_Click" Header="250 pixels" IsCheckable="True" />
-                <MenuItem Click="SetThumbnailSize_Click" Header="300 pixels" IsCheckable="True" />
-                <MenuItem Click="SetThumbnailSize_Click" Header="350 pixels" IsCheckable="True" />
-                <MenuItem Click="SetThumbnailSize_Click" Header="400 pixels" IsCheckable="True" />
-                <MenuItem Click="SetThumbnailSize_Click" Header="450 pixels" IsCheckable="True" />
-                <MenuItem Click="SetThumbnailSize_Click" Header="500 pixels" IsCheckable="True" />
+            <MenuItem x:Name="ThumbnailSizeMenu" Header="Set Thumbnail Size" ToolTip="Change the size of image thumbnails in the suggestions panel">
+                <MenuItem Click="SetThumbnailSize_Click" Header="100 pixels" IsCheckable="True" ToolTip="Set thumbnail size to 100 pixels" />
+                <MenuItem Click="SetThumbnailSize_Click" Header="150 pixels" IsCheckable="True" ToolTip="Set thumbnail size to 150 pixels" />
+                <MenuItem Click="SetThumbnailSize_Click" Header="200 pixels" IsCheckable="True" ToolTip="Set thumbnail size to 200 pixels" />
+                <MenuItem Click="SetThumbnailSize_Click" Header="250 pixels" IsCheckable="True" ToolTip="Set thumbnail size to 250 pixels" />
+                <MenuItem Click="SetThumbnailSize_Click" Header="300 pixels" IsCheckable="True" ToolTip="Set thumbnail size to 300 pixels" />
+                <MenuItem Click="SetThumbnailSize_Click" Header="350 pixels" IsCheckable="True" ToolTip="Set thumbnail size to 350 pixels" />
+                <MenuItem Click="SetThumbnailSize_Click" Header="400 pixels" IsCheckable="True" ToolTip="Set thumbnail size to 400 pixels" />
+                <MenuItem Click="SetThumbnailSize_Click" Header="450 pixels" IsCheckable="True" ToolTip="Set thumbnail size to 450 pixels" />
+                <MenuItem Click="SetThumbnailSize_Click" Header="500 pixels" IsCheckable="True" ToolTip="Set thumbnail size to 500 pixels" />
             </MenuItem>
-            <MenuItem x:Name="SearchEngineMenu" Header="Select Search Engine">
-                <MenuItem Click="SetSearchEngine_Click" Header="Bing Web Search" Tag="BingWeb" IsCheckable="True" />
-                <MenuItem Click="SetSearchEngine_Click" Header="Google Web Image Search" Tag="GoogleWeb" IsCheckable="True" />
-                <MenuItem Click="SetSearchEngine_Click" Header="Google API" Tag="Google" IsCheckable="True" />
+            <MenuItem x:Name="SearchEngineMenu" Header="Select Search Engine" ToolTip="Choose which search engine to use for finding cover art">
+                <MenuItem Click="SetSearchEngine_Click" Header="Bing Web Search" Tag="BingWeb" IsCheckable="True" ToolTip="Use Bing web search to find images" />
+                <MenuItem Click="SetSearchEngine_Click" Header="Google Web Image Search" Tag="GoogleWeb" IsCheckable="True" ToolTip="Use Google web image search to find images" />
+                <MenuItem Click="SetSearchEngine_Click" Header="Google API" Tag="Google" IsCheckable="True" ToolTip="Use Google Custom Search API (requires API key)" />
             </MenuItem>
-            <MenuItem Header="Settings">
-                <MenuItem Click="ApiSettings_Click" Header="API Settings">
+            <MenuItem Header="Settings" ToolTip="Application settings and configuration">
+                <MenuItem Click="ApiSettings_Click" Header="API Settings" ToolTip="Configure API keys for image search services">
                     <MenuItem.Icon>
                         <Image Source="pack://application:,,,/images/keys.png" Width="16" Height="16" />
                     </MenuItem.Icon>
                 </MenuItem>
-                <MenuItem Click="EditExtensions_Click" Header="Edit Supported Extensions...">
+                <MenuItem Click="EditExtensions_Click" Header="Edit Supported Extensions..." ToolTip="Manage the list of ROM file extensions to scan for">
                     <MenuItem.Icon>
                         <Image Source="pack://application:,,,/images/settings.png" Width="16" Height="16" />
                     </MenuItem.Icon>
                 </MenuItem>
-                <MenuItem Click="ToggleDebugWindow_Click" x:Name="ToggleDebugWindow" Header="Show/Hide Log Window" IsCheckable="True" />
-                <MenuItem x:Name="ToggleMameDescriptions" Header="Use MAME Descriptions" IsCheckable="True" Click="ToggleMameDescriptions_Click" />
+                <MenuItem Click="ToggleDebugWindow_Click" x:Name="ToggleDebugWindow" Header="Show/Hide Log Window" IsCheckable="True" ToolTip="Toggle visibility of the application log window" />
+                <MenuItem x:Name="ToggleMameDescriptions" Header="Use MAME Descriptions" IsCheckable="True" Click="ToggleMameDescriptions_Click" ToolTip="Use MAME descriptions as search queries for ROM names" />
             </MenuItem>
-            <MenuItem Header="About">
-                <MenuItem Click="DonateButton_Click" Header="Donate">
+            <MenuItem Header="About" ToolTip="About and support options">
+                <MenuItem Click="DonateButton_Click" Header="Donate" ToolTip="Support the development of GameCoverScraper">
                     <MenuItem.Icon>
                         <Image Source="pack://application:,,,/images/donate.png" Width="16" Height="16" />
                     </MenuItem.Icon>
                 </MenuItem>
-                <MenuItem Click="ShowAboutWindow_Click" Header="About">
+                <MenuItem Click="ShowAboutWindow_Click" Header="About" ToolTip="View information about GameCoverScraper">
                     <MenuItem.Icon>
                         <Image Source="pack://application:,,,/images/about.png" Width="16" Height="16" />
                     </MenuItem.Icon>
                 </MenuItem>
             </MenuItem>
-            <MenuItem Header="Exit">
-                <MenuItem Click="Exit_Click" Header="Exit">
+            <MenuItem Header="Exit" ToolTip="Exit the application">
+                <MenuItem Click="Exit_Click" Header="Exit" ToolTip="Close GameCoverScraper">
                     <MenuItem.Icon>
                         <Image Source="pack://application:,,,/images/exit.png" Width="16" Height="16" />
                     </MenuItem.Icon>
@@ -146,38 +149,46 @@
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <GroupBox Grid.Row="0" Header="Select Folders &amp; Query" Margin="0,0,0,10">
+                <GroupBox Grid.Row="0" Header="Select Folders &amp; Query" Margin="0,0,0,10"
+                          ToolTip="Configure ROM folder, image folder, and search query options">
                     <StackPanel Margin="5">
                         <Grid Margin="0,5,0,5">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <TextBox x:Name="TxtRomFolder" Grid.Column="0"
-                                     controls:TextBoxHelper.Watermark="Path to your ROM folder..." />
+                                     controls:TextBoxHelper.Watermark="Path to your ROM folder..."
+                                     ToolTip="Enter the full path to your ROM files folder" />
                             <Button Grid.Column="1" Content="Browse..." Margin="5,0,0,0"
-                                    Click="BtnBrowseRomFolder_Click" />
+                                    Click="BtnBrowseRomFolder_Click"
+                                    ToolTip="Open folder browser to select your ROM directory" />
                         </Grid>
                         <Grid Margin="0,5,0,5">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <TextBox x:Name="TxtImageFolder" Grid.Column="0"
-                                     controls:TextBoxHelper.Watermark="Path to your image folder..." />
+                                     controls:TextBoxHelper.Watermark="Path to your image folder..."
+                                     ToolTip="Enter the full path where downloaded cover images will be saved" />
                             <Button Grid.Column="1" Content="Browse..." Margin="5,0,0,0"
-                                    Click="BtnBrowseImageFolder_Click" />
+                                    Click="BtnBrowseImageFolder_Click"
+                                    ToolTip="Open folder browser to select your image output directory" />
                         </Grid>
                         <Grid Margin="0,5,0,5">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <Label Grid.Column="0" Content="Extra Query:" VerticalAlignment="Center" />
+                            <Label Grid.Column="0" Content="Extra Query:" VerticalAlignment="Center"
+                                   ToolTip="Additional keywords appended to search queries" />
                             <TextBox Grid.Column="1" x:Name="TxtExtraQuery"
-                                     controls:TextBoxHelper.Watermark="e.g. &quot;box art&quot;" />
+                                     controls:TextBoxHelper.Watermark="e.g. &quot;box art&quot;"
+                                     ToolTip="Optional extra keywords to include in image search queries (e.g. 'box art', 'cover')" />
                         </Grid>
                     </StackPanel>
                 </GroupBox>
 
-                <GroupBox Grid.Row="1" Margin="0,0,0,0">
+                <GroupBox Grid.Row="1" Margin="0,0,0,0"
+                          ToolTip="List of ROMs missing cover art images">
                     <GroupBox.Header>
                         <StackPanel Orientation="Horizontal">
                             <Label x:Name="LabelMissingRoms" Content="LIST OF MISSING COVERS" Padding="0,0,5,0"
@@ -190,39 +201,47 @@
                             <RowDefinition Height="*" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-                        <Button Grid.Row="0" Content="Check for Missing Images" Click="BtnCheckForMissingImages_Click"
-                                Margin="5" />
+                        <Button Grid.Row="0" Content="Check for Missing Images" Click="BtnCheckForMissingImages_ClickAsync"
+                                Margin="5"
+                                ToolTip="Scan the ROM folder and compare with the image folder to find missing cover art" />
                         <Grid Grid.Row="1">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <ListBox x:Name="LstMissingImages" SelectionChanged="LstMissingImages_SelectionChanged"
-                                         BorderThickness="0">
+                                         BorderThickness="0"
+                                         ToolTip="Select a ROM to search for its cover art. Right-click for more options.">
                                     <ListBox.ContextMenu>
                                         <ContextMenu>
-                                            <MenuItem Header="Remove Item from the list" Click="RemoveItemFromList_Click" x:Name="ContextMenuRemoveItem" />
-                                            <MenuItem Header="Copy FileName" Click="CopyFileName_Click" x:Name="ContextMenuCopyFileName" />
+                                            <MenuItem Header="Remove Item from the list" Click="RemoveItemFromList_Click" x:Name="ContextMenuRemoveItem"
+                                                      ToolTip="Remove the selected ROM from the missing covers list" />
+                                            <MenuItem Header="Copy FileName" Click="CopyFileName_Click" x:Name="ContextMenuCopyFileName"
+                                                      ToolTip="Copy the selected ROM filename to the clipboard" />
                                         </ContextMenu>
                                     </ListBox.ContextMenu>
                                 </ListBox>
                             </ScrollViewer>
                         </Grid>
                         <Button Grid.Row="2" x:Name="BtnRemoveSelectedItem" Content="Remove Selected Item from List"
-                                Click="BtnRemoveSelectedItem_Click" Margin="5" />
+                                Click="BtnRemoveSelectedItem_Click" Margin="5"
+                                ToolTip="Remove the currently selected ROM from the missing covers list" />
                     </Grid>
                 </GroupBox>
             </Grid>
 
             <!-- RIGHT COLUMN -->
-            <GroupBox Grid.Column="1" Header="Image Suggestions">
+            <GroupBox Grid.Column="1" Header="Image Suggestions"
+                      ToolTip="Cover art image results from the search engine">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <Label x:Name="LblSearchQuery" Grid.Row="0" Margin="5,0,5,5" />
+                    <Label x:Name="LblSearchQuery" Grid.Row="0" Margin="5,0,5,5"
+                           ToolTip="The search query used to find these images" />
 
                     <Grid Grid.Row="1">
-                        <ScrollViewer x:Name="ImageScrollViewer" VerticalScrollBarVisibility="Auto">
+                        <ScrollViewer x:Name="ImageScrollViewer" VerticalScrollBarVisibility="Auto"
+                                      ToolTip="Scroll through available cover art suggestions. Click an image to save it.">
                             <ItemsControl ItemsSource="{Binding PanelImages}" d:DataContext="{d:DesignInstance }">
                                 <ItemsControl.ItemTemplate>
                                     <StaticResource ResourceKey="ImageCellTemplate" />
@@ -235,11 +254,13 @@
                             </ItemsControl>
                         </ScrollViewer>
 
-                        <wv2:WebView2 x:Name="WebView" Visibility="Collapsed" />
+                        <wv2:WebView2 x:Name="WebView" Visibility="Collapsed"
+                                      ToolTip="Embedded browser for web-based image searches" />
 
                         <controls:ProgressRing IsActive="{Binding IsSearching}" HorizontalAlignment="Center"
                                                VerticalAlignment="Center"
-                                               d:DataContext="{d:DesignInstance }" />
+                                               d:DataContext="{d:DesignInstance }"
+                                               ToolTip="Searching for cover art images..." />
 
                         <TextBlock Style="{StaticResource EmptyImageListMessageStyle}"
                                    d:DataContext="{d:DesignInstance }" />
@@ -249,7 +270,8 @@
         </Grid>
 
         <!-- Status Bar -->
-        <StatusBar Grid.Row="2" Background="{DynamicResource MahApps.Brushes.Gray8}">
+        <StatusBar Grid.Row="2" Background="{DynamicResource MahApps.Brushes.Gray8}"
+                   ToolTip="Application status information">
             <StatusBar.ItemsPanel>
                 <ItemsPanelTemplate>
                     <Grid>
@@ -262,7 +284,7 @@
                 </ItemsPanelTemplate>
             </StatusBar.ItemsPanel>
 
-            <StatusBarItem Grid.Column="0">
+            <StatusBarItem Grid.Column="0" ToolTip="Currently selected search engine">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="Search Engine: " Foreground="{DynamicResource MahApps.Brushes.Text}" />
                     <TextBlock x:Name="StatusSearchEngine" Text="{Binding SearchEngineDisplay}" FontWeight="Bold"
@@ -270,11 +292,11 @@
                 </StackPanel>
             </StatusBarItem>
 
-            <StatusBarItem Grid.Column="1" HorizontalAlignment="Center">
+            <StatusBarItem Grid.Column="1" HorizontalAlignment="Center" ToolTip="Current application status message">
                 <TextBlock x:Name="StatusMessage" Text="Ready" Foreground="{DynamicResource MahApps.Brushes.Text}" />
             </StatusBarItem>
 
-            <StatusBarItem Grid.Column="2">
+            <StatusBarItem Grid.Column="2" ToolTip="Number of images found in the current search">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="Images: " Foreground="{DynamicResource MahApps.Brushes.Text}" />
                     <TextBlock x:Name="StatusImageCount" Text="0" FontWeight="Bold"

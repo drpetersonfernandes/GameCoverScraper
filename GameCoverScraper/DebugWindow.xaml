@@ -7,17 +7,22 @@
                       mc:Ignorable="d"
                       Title="Application Log" Height="450" Width="800"
                       GlowBrush="{DynamicResource MahApps.Brushes.Accent}"
-                      WindowStartupLocation="CenterScreen">
+                      WindowStartupLocation="CenterScreen"
+                      ToolTip="Application log window for debugging and monitoring">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5">
-            <Button x:Name="CopySelectionButton" Content="Copy Selection" Margin="0,0,5,0" Click="CopySelection_Click" IsEnabled="False" />
-            <Button Content="Copy All" Margin="0,0,5,0" Click="CopyLog_Click" />
-            <Button Content="Clear" Click="ClearLog_Click" />
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5"
+                    ToolTip="Log management actions">
+            <Button x:Name="CopySelectionButton" Content="Copy Selection" Margin="0,0,5,0" Click="CopySelection_Click" IsEnabled="False"
+                    ToolTip="Copy the selected log text to the clipboard" />
+            <Button Content="Copy All" Margin="0,0,5,0" Click="CopyLog_Click"
+                    ToolTip="Copy the entire log contents to the clipboard" />
+            <Button Content="Clear" Click="ClearLog_Click"
+                    ToolTip="Clear all log entries" />
         </StackPanel>
 
         <TextBox x:Name="LogTextBox"
@@ -29,11 +34,14 @@
                  IsReadOnly="True"
                  AcceptsReturn="True"
                  VerticalScrollBarVisibility="Auto"
-                 SelectionChanged="LogTextBox_SelectionChanged">
+                 SelectionChanged="LogTextBox_SelectionChanged"
+                 ToolTip="Application log output. Right-click for copy options.">
             <TextBox.ContextMenu>
                 <ContextMenu>
-                    <MenuItem x:Name="ContextMenuCopySelection" Header="Copy Selection" Click="CopySelection_Click" IsEnabled="False" />
-                    <MenuItem Header="Copy All" Click="CopyLog_Click" />
+                    <MenuItem x:Name="ContextMenuCopySelection" Header="Copy Selection" Click="CopySelection_Click" IsEnabled="False"
+                              ToolTip="Copy the selected text to the clipboard" />
+                    <MenuItem Header="Copy All" Click="CopyLog_Click"
+                              ToolTip="Copy the entire log to the clipboard" />
                 </ContextMenu>
             </TextBox.ContextMenu>
         </TextBox>

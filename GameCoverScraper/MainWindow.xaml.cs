@@ -25,14 +25,13 @@ namespace GameCoverScraper;
 
 public partial class MainWindow : INotifyPropertyChanged, IDisposable
 {
-    private List<MameManager> _machines;
     private Dictionary<string, string> _mameLookup;
     private FileSystemWatcher? _imageFolderWatcher;
     private string? _imageFolderPath;
     private string? _selectedGameFileName;
     private CancellationTokenSource? _searchCts;
-    private DispatcherTimer? _selectionDelayTimer;
-    private DispatcherTimer? _statusMessageTimer;
+    private DispatcherTimer? _selectionDelayTimer = new() { Interval = TimeSpan.FromMilliseconds(300) };
+    private DispatcherTimer? _statusMessageTimer = new() { Interval = TimeSpan.FromSeconds(5) };
     private string? _pendingStatusMessage;
     private bool _isStatusMessageTimed;
     private bool _isWebViewInitializing;
@@ -85,22 +84,21 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         _startupRomFolder = startupRomFolder;
 
         // Initialize collections (required for DataContext binding)
-        _machines = [];
         _mameLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         // Wire up event handlers
         Closing += MainWindow_Closing;
         Closed += (_, _) => Dispose();
-        Loaded += MainWindow_Loaded;
+        Loaded += MainWindow_LoadedAsync;
 
         AppLogger.Log("MainWindow constructor completed (lightweight).");
     }
 
-    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    private async void MainWindow_LoadedAsync(object sender, RoutedEventArgs e)
     {
         try
         {
-            AppLogger.Log("MainWindow_Loaded started...");
+            AppLogger.Log("MainWindow_LoadedAsync started...");
 
             // Initialize timers
             InitializeTimers();
@@ -122,17 +120,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             }
 
             // Wire up collection changed handler for status bar
-            PanelImages.CollectionChanged += (_, _) =>
-            {
-                if (Dispatcher.CheckAccess())
-                {
-                    UpdateStatusBar();
-                }
-                else
-                {
-                    Dispatcher.Invoke(UpdateStatusBar);
-                }
-            };
+            WirePanelImagesCollectionChanged();
 
             // Add keyboard and context menu handlers
             LstMissingImages.PreviewKeyDown += LstMissingImages_PreviewKeyDown;
@@ -149,28 +137,20 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             // Handle startup arguments
             HandleStartupArguments();
 
-            AppLogger.Log("MainWindow_Loaded completed.");
+            AppLogger.Log("MainWindow_LoadedAsync completed.");
         }
         catch (Exception ex)
         {
-            _ = BugReport.LogErrorAsync(ex, "Error in MainWindow_Loaded method.");
+            _ = BugReport.LogErrorAsync(ex, "Error in MainWindow_LoadedAsync method.");
         }
     }
 
     private void InitializeTimers()
     {
-        _selectionDelayTimer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(300)
-        };
-        _selectionDelayTimer.Tick += SelectionDelayTimer_Tick;
+        _selectionDelayTimer?.Tick += SelectionDelayTimer_Tick;
         AppLogger.Log("Selection delay timer initialized.");
 
-        _statusMessageTimer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromSeconds(5)
-        };
-        _statusMessageTimer.Tick += StatusMessageTimer_Tick;
+        _statusMessageTimer?.Tick += StatusMessageTimer_Tick;
         AppLogger.Log("Status message timer initialized.");
     }
 
@@ -178,11 +158,11 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     {
         try
         {
-            _machines = await Task.Run(static () => MameManager.LoadFromDat());
-            _mameLookup = _machines
+            var machines = await Task.Run(static () => MameManager.LoadFromDat());
+            _mameLookup = machines
                 .GroupBy(static m => m.MachineName, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(static g => g.Key, static g => g.First().Description, StringComparer.OrdinalIgnoreCase);
-            AppLogger.Log($"Successfully loaded {_machines.Count} MAME entries.");
+            AppLogger.Log($"Successfully loaded {machines.Count} MAME entries.");
         }
         catch (MameDatNotFoundException ex)
         {
@@ -252,7 +232,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 {
                     await Dispatcher.InvokeAsync(() =>
                     {
-                        BtnCheckForMissingImages_Click(this, new RoutedEventArgs());
+                        BtnCheckForMissingImages_ClickAsync(this, new RoutedEventArgs());
                     });
                 }
                 catch (Exception ex)
@@ -284,14 +264,14 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         };
 
         // Add the event handler
-        _imageFolderWatcher.Created += OnImageFileCreated;
+        _imageFolderWatcher.Created += OnImageFileCreatedAsync;
 
         // Start watching
         _imageFolderWatcher.EnableRaisingEvents = true;
         AppLogger.Log("FileSystemWatcher is now active.");
     }
 
-    private async void OnImageFileCreated(object sender, FileSystemEventArgs e)
+    private async void OnImageFileCreatedAsync(object sender, FileSystemEventArgs e)
     {
         try
         {
@@ -323,13 +303,13 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             {
                 // Wait for the file to be accessible to avoid read/write conflicts.
                 // This is crucial as files might be locked briefly after creation/download.
-                if (!await WaitForFileAccess(e.FullPath, 10000).ConfigureAwait(false))
+                if (!await WaitForFileAccessAsync(e.FullPath, 10000).ConfigureAwait(false))
                 {
                     // File remained locked, log it and inform the user.
                     var timeoutMessage = $"File '{e.Name}' remained locked and could not be processed. Please try saving it again.";
                     AppLogger.Log(timeoutMessage);
                     // We still want to report this, as it's an unexpected condition.
-                    _ = BugReport.LogErrorAsync(new TimeoutException($"File '{e.FullPath}' remained locked after 10000ms."), $"Error in OnImageFileCreated for file {e.FullPath}");
+                    _ = BugReport.LogErrorAsync(new TimeoutException($"File '{e.FullPath}' remained locked after 10000ms."), $"Error in OnImageFileCreatedAsync for file {e.FullPath}");
 
                     await Dispatcher.InvokeAsync(() =>
                     {
@@ -360,7 +340,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                         var targetPngPath = Path.Combine(_imageFolderPath, newFileNameWithoutExt + ".png");
 
                         // Perform conversion
-                        if (await ConvertImageToPng(e.FullPath, targetPngPath).ConfigureAwait(false))
+                        if (await ConvertImageToPngAsync(e.FullPath, targetPngPath).ConfigureAwait(false))
                         {
                             // Delete the original file after a successful conversion
                             try
@@ -392,7 +372,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             catch (Exception ex)
             {
                 AppLogger.Log($"Error processing new file '{e.FullPath}': {ex.Message}");
-                _ = BugReport.LogErrorAsync(ex, $"Error in OnImageFileCreated for file {e.FullPath}");
+                _ = BugReport.LogErrorAsync(ex, $"Error in OnImageFileCreatedAsync for file {e.FullPath}");
                 await Dispatcher.InvokeAsync(() =>
                 {
                     MessageBox.Show($"Error processing new image file '{e.Name}'", "File Processing Error", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -402,13 +382,13 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         }
         catch (Exception ex)
         {
-            AppLogger.Log($"Error in OnImageFileCreated: {ex.Message}");
-            _ = BugReport.LogErrorAsync(ex, "Error in OnImageFileCreated");
+            AppLogger.Log($"Error in OnImageFileCreatedAsync: {ex.Message}");
+            _ = BugReport.LogErrorAsync(ex, "Error in OnImageFileCreatedAsync");
             MessageBox.Show("Error processing the new image file.", "File Processing Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
-    private static async Task<bool> WaitForFileAccess(string filePath, int timeoutMilliseconds)
+    private static async Task<bool> WaitForFileAccessAsync(string filePath, int timeoutMilliseconds)
     {
         var stopwatch = Stopwatch.StartNew();
         var currentDelay = 10; // Start with a small delay (e.g., 10 ms)
@@ -495,134 +475,31 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
             try
             {
-                const int maxRetries = 2;
-                var retryCount = 0;
-                var success = false;
-
-                while (!success)
-                {
-                    try
-                    {
-                        AppLogger.Log($"Initializing WebView2 (attempt {retryCount + 1}/{maxRetries + 1})...");
-
-                        // Use LocalAppData for the user data folder to avoid permission issues
-                        // and potential "Operation aborted" errors if the default folder is locked or inaccessible.
-                        var userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GameCoverScraper", "WebView2Data");
-
-                        try
-                        {
-                            if (!Directory.Exists(userDataFolder))
-                            {
-                                Directory.CreateDirectory(userDataFolder);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            AppLogger.Log($"Warning: Could not create WebView2 user data folder: {ex.Message}. Falling back to default.");
-                            _ = BugReport.LogErrorAsync(ex, "Failed to create WebView2 user data folder.");
-                            userDataFolder = null; // Fallback to default if we can't create the folder
-                        }
-
-                        var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
-                        if (WebView != null)
-                        {
-                            await WebView.EnsureCoreWebView2Async(env);
-                            WebView.NavigationCompleted += WebView_NavigationCompleted;
-
-                            // Ensure right-click menus are enabled (this is the default, but good to be explicit)
-                            if (WebView.CoreWebView2 != null)
-                            {
-                                WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
-                                AppLogger.Log("WebView2 default context menus enabled.");
-                            }
-                        }
-
-                        AppLogger.Log("WebView2 initialized successfully.");
-                        success = true;
-                    }
-                    catch (COMException ex) when (ex.HResult == unchecked((int)0x80004004)) // E_ABORT
-                    {
-                        retryCount++;
-                        if (retryCount <= maxRetries)
-                        {
-                            AppLogger.Log($"WebView2 initialization aborted (E_ABORT), retrying in 500ms... (attempt {retryCount}/{maxRetries})");
-                            await Task.Delay(500);
-                        }
-                        else
-                        {
-                            throw;
-                        }
-                    }
-                }
+                await InitializeWebViewWithRetryAsync();
             }
             catch (WebView2RuntimeNotFoundException ex)
             {
                 AppLogger.Log($"WebView2 Runtime not found: {ex.Message}");
                 _ = BugReport.LogErrorAsync(ex, "WebView2 initialization failed: Runtime not found.");
-
-                // The Evergreen Bootstrapper is a small installer that downloads and installs the latest compatible WebView2 Runtime.
-                const string webView2DownloadUrl = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
-
-                var result = MessageBox.Show("The web browser component (Microsoft Edge WebView2 Runtime) is required for web search functionality, but it's not installed on your system.\n\n" +
-                                             "Would you like to download it from Microsoft's official website now?", "WebView2 Runtime Missing", MessageBoxButton.YesNo, MessageBoxImage.Error);
-
-                if (result == MessageBoxResult.Yes)
-                {
-                    try
-                    {
-                        Process.Start(new ProcessStartInfo(webView2DownloadUrl) { UseShellExecute = true });
-                        AppLogger.Log($"Opened WebView2 Runtime download URL for user: {webView2DownloadUrl}");
-                    }
-                    catch (Exception linkEx)
-                    {
-                        AppLogger.Log($"Failed to open WebView2 download link: {linkEx.Message}");
-                        _ = BugReport.LogErrorAsync(linkEx, "Failed to open WebView2 download link.");
-                        MessageBox.Show($"Could not open the download link automatically. Please visit the following URL in your browser:\n\n{webView2DownloadUrl}",
-                            "Link Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    }
-                }
+                PromptWebView2Download("WebView2 Runtime Missing",
+                    "The web browser component (Microsoft Edge WebView2 Runtime) is required for web search functionality, but it's not installed on your system.");
             }
-            catch (COMException ex) when (ex.HResult == unchecked((int)0x80004004)) // E_ABORT
+            catch (COMException ex) when (ex.HResult == unchecked((int)0x80004004))
             {
                 AppLogger.Log("WebView2 initialization was aborted (E_ABORT) after all retry attempts.");
                 _ = BugReport.LogErrorAsync(ex, "WebView2 initialization was aborted (E_ABORT) after all retry attempts.");
-
-                // The Evergreen Bootstrapper is a small installer that downloads and installs the latest compatible WebView2 Runtime.
-                const string webView2DownloadUrl = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
-
-                var result = MessageBox.Show(
+                PromptWebView2Download("WebView2 Initialization Failed",
                     "The web browser component (Microsoft Edge WebView2 Runtime) is required for web search functionality, but it could not be initialized.\n\n" +
-                    "This can happen if the component is not installed, is outdated, or if there are permission issues with the data folder.\n\n" +
-                    "Would you like to download it from Microsoft's official website now?",
-                    "WebView2 Initialization Failed", MessageBoxButton.YesNo, MessageBoxImage.Error);
-
-                if (result == MessageBoxResult.Yes)
-                {
-                    try
-                    {
-                        Process.Start(new ProcessStartInfo(webView2DownloadUrl) { UseShellExecute = true });
-                        AppLogger.Log($"Opened WebView2 Runtime download URL for user: {webView2DownloadUrl}");
-                    }
-                    catch (Exception linkEx)
-                    {
-                        AppLogger.Log($"Failed to open WebView2 download link: {linkEx.Message}");
-                        _ = BugReport.LogErrorAsync(linkEx, "Failed to open WebView2 download link.");
-                        MessageBox.Show($"Could not open the download link automatically. Please visit the following URL in your browser:\n\n{webView2DownloadUrl}",
-                            "Link Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    }
-                }
+                    "This can happen if the component is not installed, is outdated, or if there are permission issues with the data folder.");
             }
             catch (Exception ex)
             {
                 AppLogger.Log($"WebView2 initialization failed with an unexpected error: {ex.Message}");
                 _ = BugReport.LogErrorAsync(ex, "WebView2 initialization failed with an unexpected error.");
-
                 MessageBox.Show(
                     "An unexpected error occurred while initializing the web browser component (WebView2).\n\n" +
                     "Please try restarting the application. If the problem persists, ensure Microsoft Edge is up to date.",
-                    "WebView2 Error",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
+                    "WebView2 Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
@@ -632,6 +509,83 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         catch (Exception ex)
         {
             _ = BugReport.LogErrorAsync(ex, "WebView2 initialization failed with an unexpected error.");
+        }
+    }
+
+    private async Task InitializeWebViewWithRetryAsync()
+    {
+        const int maxRetries = 2;
+        var retryCount = 0;
+
+        while (true)
+        {
+            try
+            {
+                AppLogger.Log($"Initializing WebView2 (attempt {retryCount + 1}/{maxRetries + 1})...");
+
+                var userDataFolder = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "GameCoverScraper", "WebView2Data");
+
+                try
+                {
+                    if (!Directory.Exists(userDataFolder))
+                        Directory.CreateDirectory(userDataFolder);
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.Log($"Warning: Could not create WebView2 user data folder: {ex.Message}. Falling back to default.");
+                    _ = BugReport.LogErrorAsync(ex, "Failed to create WebView2 user data folder.");
+                    userDataFolder = null;
+                }
+
+                var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
+                if (WebView != null)
+                {
+                    await WebView.EnsureCoreWebView2Async(env);
+                    WebView.NavigationCompleted += WebView_NavigationCompleted;
+
+                    if (WebView.CoreWebView2 != null)
+                    {
+                        WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
+                        AppLogger.Log("WebView2 default context menus enabled.");
+                    }
+                }
+
+                AppLogger.Log("WebView2 initialized successfully.");
+                return;
+            }
+            catch (COMException ex) when (ex.HResult == unchecked((int)0x80004004) && retryCount < maxRetries)
+            {
+                retryCount++;
+                AppLogger.Log($"WebView2 initialization aborted (E_ABORT), retrying in 500ms... (attempt {retryCount}/{maxRetries})");
+                await Task.Delay(500);
+            }
+        }
+    }
+
+    private static void PromptWebView2Download(string title, string message)
+    {
+        const string webView2DownloadUrl = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
+
+        var result = MessageBox.Show(
+            $"{message}\n\nWould you like to download it from Microsoft's official website now?",
+            title, MessageBoxButton.YesNo, MessageBoxImage.Error);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(webView2DownloadUrl) { UseShellExecute = true });
+            AppLogger.Log($"Opened WebView2 Runtime download URL for user: {webView2DownloadUrl}");
+        }
+        catch (Exception linkEx)
+        {
+            AppLogger.Log($"Failed to open WebView2 download link: {linkEx.Message}");
+            _ = BugReport.LogErrorAsync(linkEx, "Failed to open WebView2 download link.");
+            MessageBox.Show(
+                $"Could not open the download link automatically. Please visit the following URL in your browser:\n\n{webView2DownloadUrl}",
+                "Link Error", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
@@ -689,6 +643,21 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             OnPropertyChanged();
         }
     } = "Ready";
+
+    private void WirePanelImagesCollectionChanged()
+    {
+        PanelImages.CollectionChanged += (_, _) =>
+        {
+            if (Dispatcher.CheckAccess())
+            {
+                UpdateStatusBar();
+            }
+            else
+            {
+                Dispatcher.Invoke(UpdateStatusBar);
+            }
+        };
+    }
 
     private void UpdateStatusBar()
     {
@@ -786,7 +755,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     private void Exit_Click(object sender, RoutedEventArgs e)
     {
         AppLogger.Log("Exit menu item clicked.");
-        Close();
+        Application.Current.Shutdown();
     }
 
     private void DonateButton_Click(object sender, RoutedEventArgs e)
@@ -833,7 +802,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         InitializeFileSystemWatcher();
     }
 
-    private async void BtnCheckForMissingImages_Click(object sender, RoutedEventArgs e)
+    private async void BtnCheckForMissingImages_ClickAsync(object sender, RoutedEventArgs e)
     {
         try
         {
@@ -841,7 +810,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             var romFolderPath = TxtRomFolder.Text;
             var imageFolderPath = TxtImageFolder.Text;
 
-            if (string.IsNullOrEmpty(romFolderPath) || string.IsNullOrEmpty(imageFolderPath))
+            if (string.IsNullOrWhiteSpace(romFolderPath) || string.IsNullOrWhiteSpace(imageFolderPath))
             {
                 MessageBox.Show("Please select both ROM and Image folders.", "Missing Information", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
@@ -906,30 +875,30 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
                 // Call the updated async version of CheckForMissingImages
                 // This method now ONLY identifies missing PNGs. Conversion is handled by FileSystemWatcher.
-                await CheckForMissingImages(LstMissingImages, imageFolderPath, romFiles).ConfigureAwait(false);
+                await CheckForMissingImagesAsync(LstMissingImages, imageFolderPath, romFiles).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 StatusMessageText = "An error occurred while checking for images.";
                 MessageBox.Show("An error occurred while checking for images.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                _ = BugReport.LogErrorAsync(ex, "Unexpected error in BtnCheckForMissingImages_Click.").ConfigureAwait(false);
+                _ = BugReport.LogErrorAsync(ex, "Unexpected error in BtnCheckForMissingImages_ClickAsync.").ConfigureAwait(false);
             }
         }
         catch (Exception ex)
         {
-            _ = BugReport.LogErrorAsync(ex, "Unexpected error in BtnCheckForMissingImages_Click outer try-catch.").ConfigureAwait(false);
+            _ = BugReport.LogErrorAsync(ex, "Unexpected error in BtnCheckForMissingImages_ClickAsync outer try-catch.").ConfigureAwait(false);
         }
     }
 
     /// <summary>
     /// Checks for missing images for ROMs. It identifies ROMs that do not have a corresponding cover image
     /// in any of the recognized image formats (PNG, JPG, BMP, GIF, TIFF, WebP, AVIF).
-    /// Image conversion for newly created files is now handled by the FileSystemWatcher in OnImageFileCreated.
+        /// Image conversion for newly created files is now handled by the FileSystemWatcher in OnImageFileCreatedAsync.
     /// </summary>
     /// <param name="lstMissingImages">The ListBox to populate with names of ROMs still missing covers.</param>
     /// <param name="imageFolderPath">The path to the folder where images are stored.</param>
     /// <param name="romFiles">An array of full paths to ROM files.</param>
-    private async Task CheckForMissingImages(ListBox lstMissingImages, string imageFolderPath, string[] romFiles)
+    private async Task CheckForMissingImagesAsync(ListBox lstMissingImages, string imageFolderPath, string[] romFiles)
     {
         AppLogger.Log("Starting check for missing images (all recognized formats).");
         StatusMessageText = "Scanning for missing covers...";
@@ -976,7 +945,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     /// <param name="sourcePath">The path to the source image file.</param>
     /// <param name="destinationPath">The path where the PNG image will be saved.</param>
     /// <returns>True if conversion was successful, false otherwise.</returns>
-    private static async Task<bool> ConvertImageToPng(string sourcePath, string destinationPath)
+    private static async Task<bool> ConvertImageToPngAsync(string sourcePath, string destinationPath)
     {
         try
         {
@@ -1066,8 +1035,6 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         // --- Automatic copy to clipboard ---
         try
         {
-            if (string.IsNullOrEmpty(selectedFile)) return;
-
             Clipboard.SetText(selectedFile);
             AppLogger.Log($"Automatically copied filename to clipboard: '{selectedFile}'");
 
@@ -1126,8 +1093,15 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
         // Remove path traversal sequences and invalid path characters
         var invalidChars = Path.GetInvalidFileNameChars();
-        var sanitized = new string(fileName
-            .Replace("..", "")
+
+        // Iteratively remove ".." to prevent traversal attacks (e.g., "...." -> "..")
+        var sanitized = fileName;
+        while (sanitized.Contains(".."))
+        {
+            sanitized = sanitized.Replace("..", "");
+        }
+
+        sanitized = new string(sanitized
             .Replace("/", "")
             .Replace("\\", "")
             .Select(c => invalidChars.Contains(c) ? '_' : c)
@@ -1191,13 +1165,13 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             switch (Settings.SearchEngine)
             {
                 case "BingWeb":
-                    await HandleBingWebSearch(searchQuery).ConfigureAwait(false);
+                    await HandleBingWebSearchAsync(searchQuery).ConfigureAwait(false);
                     return;
                 case "GoogleWeb":
-                    await HandleGoogleWebSearch(searchQuery).ConfigureAwait(false);
+                    await HandleGoogleWebSearchAsync(searchQuery).ConfigureAwait(false);
                     return;
                 default:
-                    await HandleApiSearch(searchQuery, token).ConfigureAwait(false);
+                    await HandleApiSearchAsync(searchQuery, token).ConfigureAwait(false);
                     break;
             }
         }
@@ -1225,7 +1199,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         }
     }
 
-    private async Task HandleApiSearch(string searchQuery, CancellationToken token)
+    private async Task HandleApiSearchAsync(string searchQuery, CancellationToken token)
     {
         try
         {
@@ -1238,7 +1212,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             List<ImageData> coverImageUrls;
             try
             {
-                coverImageUrls = await FetchImagesWithRetry(apiSearchQuery, Settings.SearchEngine, token).ConfigureAwait(false);
+                coverImageUrls = await FetchImagesWithRetryAsync(apiSearchQuery, Settings.SearchEngine, token).ConfigureAwait(false);
             }
             catch (InvalidOperationException ex) when (ex.Message.Contains("API Key is not set"))
             {
@@ -1301,6 +1275,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             {
                 // Create new ObservableCollection to avoid triggering notifications for each item
                 PanelImages = new ObservableCollection<ImageData>(imageDataList);
+                WirePanelImagesCollectionChanged();
                 OnPropertyChanged(nameof(PanelImages));
 
                 StatusMessageText = coverImageUrls.Count > 0 ? $"Found {coverImageUrls.Count} images." : "No images found.";
@@ -1322,7 +1297,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         catch (OperationCanceledException ex)
         {
             AppLogger.Log("Image fetch operation was canceled.");
-            _ = BugReport.LogErrorAsync(ex, "Image fetch operation was canceled in HandleApiSearch.");
+            _ = BugReport.LogErrorAsync(ex, "Image fetch operation was canceled in HandleApiSearchAsync.");
             await Dispatcher.InvokeAsync(() => { StatusMessageText = "Search canceled."; });
         }
         catch (Exception ex)
@@ -1334,7 +1309,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                     StatusMessageText = "Error fetching images.";
                     MessageBox.Show("There was an error fetching the images", "Warning", MessageBoxButton.OK, MessageBoxImage.Error);
                 });
-                _ = BugReport.LogErrorAsync(ex, "Error fetching images in HandleApiSearch.");
+                _ = BugReport.LogErrorAsync(ex, "Error fetching images in HandleApiSearchAsync.");
             }
         }
         finally
@@ -1350,7 +1325,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         }
     }
 
-    private async Task<List<ImageData>> FetchImagesWithRetry(string searchQuery, string searchEngine, CancellationToken cancellationToken = default)
+    private async Task<List<ImageData>> FetchImagesWithRetryAsync(string searchQuery, string searchEngine, CancellationToken cancellationToken = default)
     {
         const int maxRetries = 1;
         var retryCount = 0;
@@ -1372,7 +1347,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             catch (InvalidOperationException ex) when (ex.Message.Contains("API Key is not set") && retryCount < maxRetries)
             {
                 retryCount++;
-                _ = BugReport.LogErrorAsync(ex, "API Key is not set during FetchImagesWithRetry.");
+                _ = BugReport.LogErrorAsync(ex, "API Key is not set during FetchImagesWithRetryAsync.");
 
                 // Show API settings dialog
                 var result = MessageBox.Show($"API Key is not set.\n\n" +
@@ -1398,7 +1373,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             }
             catch (InvalidOperationException ex)
             {
-                _ = BugReport.LogErrorAsync(ex, "API error in FetchImagesWithRetry.");
+                _ = BugReport.LogErrorAsync(ex, "API error in FetchImagesWithRetryAsync.");
                 MessageBox.Show(ex.Message, "API Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return [];
             }
@@ -1654,11 +1629,11 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         if (_imageFolderWatcher != null)
         {
             _imageFolderWatcher.EnableRaisingEvents = false;
-            _imageFolderWatcher.Created -= OnImageFileCreated;
+            _imageFolderWatcher.Created -= OnImageFileCreatedAsync;
         }
     }
 
-    private async void SaveImage_Click(object sender, RoutedEventArgs e)
+    private async void SaveImage_ClickAsync(object sender, RoutedEventArgs e)
     {
         try
         {
@@ -1726,7 +1701,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         }
         catch (Exception ex)
         {
-            _ = BugReport.LogErrorAsync(ex, "Error in SaveImage_Click outer try-catch.").ConfigureAwait(false);
+            _ = BugReport.LogErrorAsync(ex, "Error in SaveImage_ClickAsync outer try-catch.").ConfigureAwait(false);
         }
     }
 
@@ -1736,19 +1711,13 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         _searchCts?.Dispose();
 
         // Unsubscribe timer event handlers to prevent memory leaks
-        if (_selectionDelayTimer != null)
-        {
-            _selectionDelayTimer.Tick -= SelectionDelayTimer_Tick;
-            _selectionDelayTimer.Stop();
-            _selectionDelayTimer = null;
-        }
+        _selectionDelayTimer?.Tick -= SelectionDelayTimer_Tick;
+        _selectionDelayTimer?.Stop();
+        _selectionDelayTimer = null;
 
-        if (_statusMessageTimer != null)
-        {
-            _statusMessageTimer.Tick -= StatusMessageTimer_Tick;
-            _statusMessageTimer.Stop();
-            _statusMessageTimer = null;
-        }
+        _statusMessageTimer?.Tick -= StatusMessageTimer_Tick;
+        _statusMessageTimer?.Stop();
+        _statusMessageTimer = null;
 
         // Unsubscribe WebView event handler to prevent memory leaks
         if (WebView != null)
@@ -1788,6 +1757,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 catch (Exception ex)
                 {
                     AppLogger.Log($"Warning: Error stopping WebView2 navigation: {ex.Message}");
+                    _ = BugReport.LogErrorAsync(ex, "Error stopping WebView2 navigation during disposal.");
                 }
             }
 
@@ -1798,6 +1768,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         catch (Exception ex)
         {
             AppLogger.Log($"Error disposing WebView2: {ex.Message}");
+            _ = BugReport.LogErrorAsync(ex, "Error disposing WebView2.");
         }
     }
 

@@ -9,7 +9,6 @@ public partial class App
 {
     public static DebugWindow? LogWindow { get; private set; }
     public static ImageSaveService ImageSaveService { get; } = new();
-    public static WebSearchService WebSearchService { get; } = new();
 
     private static string? StartupImageFolder { get; set; }
     private static string? StartupRomFolder { get; set; }
@@ -47,6 +46,10 @@ public partial class App
 
             // Initialize BugReport with settings
             BugReport.Initialize(settings);
+
+            // Global exception handlers to catch any unhandled bugs
+            AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
+            Current.DispatcherUnhandledException += OnDispatcherUnhandledException;
 
             // Record application stats to the stats API (only once per session)
             RecordStartupStatsOnce();
@@ -97,6 +100,37 @@ public partial class App
         _ = ApplicationStatsService.RecordStartupAsync();
     }
 
+    private static void OnDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
+    {
+        if (e.ExceptionObject is Exception ex)
+        {
+            AppLogger.Log($"UNHANDLED EXCEPTION (AppDomain): {ex.Message}");
+            try
+            {
+                _ = BugReport.LogErrorAsync(ex, "Unhandled exception in AppDomain.");
+            }
+            catch
+            {
+                // Swallow - nothing more we can do
+            }
+        }
+    }
+
+    private static void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
+    {
+        AppLogger.Log($"UNHANDLED EXCEPTION (Dispatcher): {e.Exception.Message}");
+        try
+        {
+            _ = BugReport.LogErrorAsync(e.Exception, "Unhandled exception on UI dispatcher.");
+        }
+        catch
+        {
+            // Swallow - nothing more we can do
+        }
+
+        e.Handled = true;
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
         AppLogger.Log("Application exiting.");
@@ -120,7 +154,12 @@ public partial class App
         }
 
         HttpClientHelper.Dispose(); // Clean up the shared HttpClient
+        PlaySound.Shutdown(); // Clean up MediaPlayer to prevent process staying alive
 
         base.OnExit(e);
+
+        // Force process termination as a safety net in case background threads
+        // or unmanaged resources prevent normal shutdown
+        Environment.Exit(0);
     }
 }

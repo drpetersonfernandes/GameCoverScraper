@@ -6,7 +6,8 @@
                       Width="450"
                       Height="400"
                       ResizeMode="NoResize"
-                      WindowStartupLocation="CenterScreen" >
+                      WindowStartupLocation="CenterScreen"
+                      ToolTip="About GameCoverScraper">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -22,17 +23,23 @@
             <Image
                 Width="150"
                 Height="150"
-                Source="pack://application:,,,/images/logo.png" />
+                Source="pack://application:,,,/images/logo.png"
+                ToolTip="GameCoverScraper logo" />
         </StackPanel>
 
         <StackPanel Grid.Row="1" Margin="10">
-            <TextBlock FontWeight="Bold" Text="GameCoverScraper" />
-            <TextBlock Text="Organize your ROM images collection" />
-            <TextBlock Name="AppVersionTextBlock" Margin="0,10,0,0" Text="" />
-            <TextBlock Margin="0,10,0,0">
+            <TextBlock FontWeight="Bold" Text="GameCoverScraper"
+                       ToolTip="Application name" />
+            <TextBlock Text="Organize your ROM images collection"
+                       ToolTip="Application description" />
+            <TextBlock Name="AppVersionTextBlock" Margin="0,10,0,0" Text=""
+                       ToolTip="Current application version number" />
+            <TextBlock Margin="0,10,0,0"
+                       ToolTip="Visit the developer's website">
                 <Hyperlink NavigateUri="https://www.purelogiccode.com" RequestNavigate="Hyperlink_RequestNavigate">https://www.purelogiccode.com</Hyperlink>
             </TextBlock>
-            <TextBlock Margin="0,10,0,10">
+            <TextBlock Margin="0,10,0,10"
+                       ToolTip="View the source code on GitHub">
                 <Hyperlink NavigateUri="https://github.com/drpetersonfernandes/GameCoverScraper" RequestNavigate="Hyperlink_RequestNavigate">https://github.com/drpetersonfernandes/GameCoverScraper</Hyperlink>
             </TextBlock>
         </StackPanel>
@@ -46,7 +53,8 @@
                 Width="120"
                 Margin="10,0,0,0"
                 Click="CloseButton_Click"
-                Content="Close" />
+                Content="Close"
+                ToolTip="Close the About window" />
         </StackPanel>
     </Grid>
 </controls:MetroWindow>

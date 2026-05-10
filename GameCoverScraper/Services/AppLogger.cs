@@ -37,8 +37,8 @@ public static class AppLogger
             $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{Path.GetFileNameWithoutExtension(sourceFilePath)}.{memberName}:{sourceLineNumber}] - {message}";
         var logEntry = new LogEntry { Message = logEntryText };
 
-        // Dispatch to UI thread for updating ObservableCollection
-        Application.Current?.Dispatcher.Invoke(() =>
+        // Dispatch to UI thread for updating ObservableCollection (non-blocking)
+        Application.Current?.Dispatcher.BeginInvoke(() =>
         {
             LogMessages.Add(logEntry);
             // Optional: Limit the number of messages in memory

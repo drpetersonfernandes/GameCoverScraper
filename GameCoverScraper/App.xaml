@@ -15,7 +15,6 @@
             </ResourceDictionary.MergedDictionaries>
 
             <!-- Converters -->
-            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
             <services:ObjectToBoolConverter x:Key="IsNotNullConverter" />
 
             <!-- Styles -->

@@ -1,21 +1,19 @@
+using System.Globalization;
 using System.IO;
 using System.Net.Http;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 using GameCoverScraper.Managers;
 
 namespace GameCoverScraper.Services;
 
-public interface IBugReportService
-{
-    Task LogErrorAsync(Exception? ex, string? contextMessage = null);
-}
-
-public class BugReportService : IBugReportService
+public class BugReportService
 {
     private readonly SettingsManager _settings;
+    internal static readonly string AppVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
 
-    // Use shared HttpClient from HttpClientHelper to avoid resource leaks
     private static HttpClient HttpClient => HttpClientHelper.Client;
 
     public BugReportService(SettingsManager settingsManager)
@@ -31,60 +29,132 @@ public class BugReportService : IBugReportService
         var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
         var errorLogPath = Path.Combine(baseDirectory, "error.log");
         var userLogPath = Path.Combine(baseDirectory, "error_user.log");
-        var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
-
-        // Include exception details in the log message
-        var fullErrorMessage = $"Date: {DateTime.Now}\nVersion: {version}\n\n";
-        if (!string.IsNullOrEmpty(contextMessage))
-        {
-            fullErrorMessage += $"{contextMessage}\n\n";
-        }
 
         if (ex == null)
         {
             ex = new InvalidOperationException("LogErrorAsync was called with a null exception.");
         }
 
-        fullErrorMessage += $"Exception Type: {ex.GetType().Name}\n";
-        fullErrorMessage += $"Exception Message: {ex.Message}\n";
-        fullErrorMessage += $"Stack Trace:\n{ex.StackTrace}\n\n";
+        var now = DateTime.Now;
+        var osVersion = RuntimeInformation.OSDescription;
+        var architecture = RuntimeInformation.OSArchitecture.ToString();
+        var processorCount = Environment.ProcessorCount;
+        var tempPath = Path.GetTempPath();
+        var windowsVersion = Environment.OSVersion.VersionString;
+        var is64Bit = Environment.Is64BitOperatingSystem;
+        var bitness = is64Bit ? "64-bit" : "32-bit";
 
-        // Log to the main application logger
-        AppLogger.Log($"--- ERROR ---\n{fullErrorMessage}");
+        var envDetails = new StringBuilder();
+        envDetails.AppendLine("=== Environment Details ===");
+        envDetails.AppendLine(CultureInfo.InvariantCulture, $"Date: {now:yyyy-MM-dd HH:mm:ss}");
+        envDetails.AppendLine("Application Name: GameCoverScraper");
+        envDetails.AppendLine(CultureInfo.InvariantCulture, $"Application Version: {AppVersion}");
+        envDetails.AppendLine(CultureInfo.InvariantCulture, $"OS Version: {osVersion}");
+        envDetails.AppendLine(CultureInfo.InvariantCulture, $"Architecture: {architecture}");
+        envDetails.AppendLine(CultureInfo.InvariantCulture, $"Bitness: {bitness}");
+        envDetails.AppendLine(CultureInfo.InvariantCulture, $"Windows Version: {windowsVersion}");
+        envDetails.AppendLine(CultureInfo.InvariantCulture, $"Processor Count: {processorCount}");
+        envDetails.AppendLine(CultureInfo.InvariantCulture, $"Base Directory: {baseDirectory}");
+        envDetails.AppendLine(CultureInfo.InvariantCulture, $"Temp Path: {tempPath}");
+
+        if (!string.IsNullOrEmpty(contextMessage))
+        {
+            envDetails.AppendLine();
+            envDetails.AppendLine(CultureInfo.InvariantCulture, $"Context: {contextMessage}");
+        }
+
+        var errorDetails = new StringBuilder();
+        errorDetails.AppendLine();
+        errorDetails.AppendLine("=== Error Details ===");
+        errorDetails.AppendLine(CultureInfo.InvariantCulture, $"Error Message: {ex.Message}");
+
+        var exceptionDetails = new StringBuilder();
+        exceptionDetails.AppendLine();
+        exceptionDetails.AppendLine("=== Exception Details ===");
+        exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"Type: {ex.GetType().FullName}");
+        exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"Message: {ex.Message}");
+        exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"Source: {ex.Source ?? "N/A"}");
+        exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"StackTrace: {ex.StackTrace ?? "N/A"}");
+
+        if (ex.InnerException != null)
+        {
+            exceptionDetails.AppendLine();
+            exceptionDetails.AppendLine("--- Inner Exception ---");
+            exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"Type: {ex.InnerException.GetType().FullName}");
+            exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"Message: {ex.InnerException.Message}");
+            exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"Source: {ex.InnerException.Source ?? "N/A"}");
+            exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"StackTrace: {ex.InnerException.StackTrace ?? "N/A"}");
+        }
+
+        var fullLog = $"{envDetails}\n{errorDetails}\n{exceptionDetails}\n";
+
+        AppLogger.Log($"--- ERROR ---\n{fullLog}");
 
         try
         {
-            // Append the error message to the general log
-            await File.AppendAllTextAsync(errorLogPath, fullErrorMessage);
+            await File.AppendAllTextAsync(errorLogPath, fullLog);
 
-            // Append the error message to the user-specific log
-            var userErrorMessage = fullErrorMessage +
+            var userErrorMessage = fullLog +
                                    "--------------------------------------------------------------------------------------------------------------\n\n\n";
             await File.AppendAllTextAsync(userLogPath, userErrorMessage);
 
-            // Attempt to send the error log content to the new API.
-            // Pass the full error message including exception details
-            if (await SendLogToApiAsync(fullErrorMessage))
+            if (await SendLogToApiAsync(ex, contextMessage, envDetails.ToString()))
             {
-                // If the log was successfully sent, delete the general log file to clean up.
-                // Keep the user log file for the user's reference.
                 File.Delete(errorLogPath);
             }
         }
         catch (Exception loggingEx)
         {
-            // Ignore any exceptions raised during logging to avoid interrupting the main flow
-            // Optionally log this failure to console or a separate minimal log file
             await Console.Error.WriteLineAsync($"Failed to write error log files or send to API: {loggingEx.Message}");
         }
     }
 
-    private async Task<bool> SendLogToApiAsync(string logContent)
+    private async Task<bool> SendLogToApiAsync(Exception ex, string? contextMessage, string envDetails)
     {
         if (string.IsNullOrEmpty(ApiKey))
         {
             await Console.Error.WriteLineAsync("API Key is missing. Cannot send error log.");
             return false;
+        }
+
+        var messageBuilder = new StringBuilder();
+        messageBuilder.Append(envDetails);
+        messageBuilder.AppendLine();
+        messageBuilder.AppendLine("=== Error Details ===");
+        messageBuilder.AppendLine(CultureInfo.InvariantCulture, $"Error Message: {ex.Message}");
+
+        if (!string.IsNullOrEmpty(contextMessage))
+        {
+            messageBuilder.AppendLine(CultureInfo.InvariantCulture, $"Context: {contextMessage}");
+        }
+
+        var message = messageBuilder.ToString();
+        if (message.Length > 4000)
+        {
+            message = message[..3997] + "...";
+        }
+
+        var stackTraceBuilder = new StringBuilder();
+        stackTraceBuilder.AppendLine("=== Exception Details ===");
+        stackTraceBuilder.AppendLine(CultureInfo.InvariantCulture, $"Type: {ex.GetType().FullName}");
+        stackTraceBuilder.AppendLine(CultureInfo.InvariantCulture, $"Message: {ex.Message}");
+        stackTraceBuilder.AppendLine(CultureInfo.InvariantCulture, $"Source: {ex.Source ?? "N/A"}");
+        stackTraceBuilder.AppendLine(CultureInfo.InvariantCulture, $"StackTrace: {ex.StackTrace ?? "N/A"}");
+
+        if (ex.InnerException != null)
+        {
+            stackTraceBuilder.AppendLine();
+            stackTraceBuilder.AppendLine("--- Inner Exception ---");
+            stackTraceBuilder.AppendLine(CultureInfo.InvariantCulture, $"Type: {ex.InnerException.GetType().FullName}");
+            stackTraceBuilder.AppendLine(CultureInfo.InvariantCulture, $"Message: {ex.InnerException.Message}");
+            stackTraceBuilder.AppendLine(CultureInfo.InvariantCulture, $"Source: {ex.InnerException.Source ?? "N/A"}");
+            stackTraceBuilder.AppendLine(CultureInfo.InvariantCulture, $"StackTrace: {ex.InnerException.StackTrace ?? "N/A"}");
+        }
+
+        var stackTrace = stackTraceBuilder.ToString();
+        if (stackTrace.Length > 8000)
+        {
+            stackTrace = stackTrace[..7997] + "...";
         }
 
         const int maxRetries = 3;
@@ -95,11 +165,14 @@ public class BugReportService : IBugReportService
                 var bugReportPayload = new
                 {
                     ApplicationName = "GameCoverScraper",
-                    Message = logContent
+                    Version = AppVersion,
+                    Message = message,
+                    StackTrace = stackTrace,
+                    Environment = RuntimeInformation.OSDescription[..Math.Min(200, RuntimeInformation.OSDescription.Length)]
                 };
 
                 var jsonPayload = JsonSerializer.Serialize(bugReportPayload);
-                using var content = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
+                using var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
                 using var request = new HttpRequestMessage(HttpMethod.Post, BugReportApiUrl);
 
                 request.Content = content;
@@ -108,36 +181,31 @@ public class BugReportService : IBugReportService
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                 using var response = await HttpClient.SendAsync(request, cts.Token);
 
-                // Simplified: if IsSuccessStatusCode, assume success
                 if (response.IsSuccessStatusCode)
                 {
                     return true;
                 }
-                else
-                {
-                    // For 5xx errors, retry; for 4xx errors, don't retry
-                    if ((int)response.StatusCode >= 500 && attempt < maxRetries)
-                    {
-                        await Console.Error.WriteLineAsync(
-                            $"API returned {response.StatusCode} (attempt {attempt}/{maxRetries}). Retrying...");
-                        await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)), cts.Token); // Exponential backoff
-                        continue;
-                    }
 
-                    var errorContent = await response.Content.ReadAsStringAsync(cts.Token);
-                    await Console.Error.WriteLineAsync($"API returned non-success status code: {response.StatusCode}");
-                    await Console.Error.WriteLineAsync($"API Error Response: {errorContent}");
-                    return false;
+                if ((int)response.StatusCode >= 500 && attempt < maxRetries)
+                {
+                    await Console.Error.WriteLineAsync(
+                        $"API returned {response.StatusCode} (attempt {attempt}/{maxRetries}). Retrying...");
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)), cts.Token);
+                    continue;
                 }
+
+                var errorContent = await response.Content.ReadAsStringAsync(cts.Token);
+                await Console.Error.WriteLineAsync($"API returned non-success status code: {response.StatusCode}");
+                await Console.Error.WriteLineAsync($"API Error Response: {errorContent}");
+                return false;
             }
             catch (HttpRequestException httpEx)
             {
-                // Handle network errors, DNS issues, connection refused, etc.
                 if (attempt < maxRetries)
                 {
                     await Console.Error.WriteLineAsync(
                         $"HTTP Request failed (attempt {attempt}/{maxRetries}): {httpEx.Message}. Retrying...");
-                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt))); // Exponential backoff
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)));
                     continue;
                 }
 
@@ -146,12 +214,11 @@ public class BugReportService : IBugReportService
             }
             catch (TaskCanceledException tcEx) when (tcEx.CancellationToken.IsCancellationRequested)
             {
-                // Handle timeout
                 if (attempt < maxRetries)
                 {
                     await Console.Error.WriteLineAsync(
                         $"HTTP Request timed out (attempt {attempt}/{maxRetries}). Retrying...");
-                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt))); // Exponential backoff
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)));
                     continue;
                 }
 
@@ -195,6 +262,70 @@ public static class BugReport
 
     public static Task LogErrorAsync(Exception? ex, string? contextMessage = null)
     {
-        return _instance?.LogErrorAsync(ex, contextMessage) ?? Task.CompletedTask;
+        if (_instance != null)
+            return _instance.LogErrorAsync(ex, contextMessage);
+
+        // Fallback: _instance not yet initialized (e.g. crash before BugReport.Initialize).
+        // Write to local log files so the error is not silently swallowed.
+        return LogErrorToLocalAsync(ex, contextMessage);
+    }
+
+    private static async Task LogErrorToLocalAsync(Exception? ex, string? contextMessage)
+    {
+        try
+        {
+            ex ??= new InvalidOperationException("LogErrorAsync was called with a null exception.");
+
+            var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            var errorLogPath = Path.Combine(baseDirectory, "error.log");
+            var userLogPath = Path.Combine(baseDirectory, "error_user.log");
+
+            var envDetails = new StringBuilder();
+            envDetails.AppendLine("=== Environment Details ===");
+            envDetails.AppendLine(CultureInfo.InvariantCulture, $"Date: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            envDetails.AppendLine("Application Name: GameCoverScraper");
+            envDetails.AppendLine(CultureInfo.InvariantCulture, $"Application Version: {BugReportService.AppVersion}");
+            envDetails.AppendLine(CultureInfo.InvariantCulture, $"OS Version: {RuntimeInformation.OSDescription}");
+            envDetails.AppendLine(CultureInfo.InvariantCulture, $"Architecture: {RuntimeInformation.OSArchitecture}");
+            envDetails.AppendLine(CultureInfo.InvariantCulture, $"Base Directory: {baseDirectory}");
+
+            if (!string.IsNullOrEmpty(contextMessage))
+            {
+                envDetails.AppendLine();
+                envDetails.AppendLine(CultureInfo.InvariantCulture, $"Context: {contextMessage}");
+            }
+
+            var exceptionDetails = new StringBuilder();
+            exceptionDetails.AppendLine();
+            exceptionDetails.AppendLine("=== Exception Details ===");
+            exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"Type: {ex.GetType().FullName}");
+            exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"Message: {ex.Message}");
+            exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"Source: {ex.Source ?? "N/A"}");
+            exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"StackTrace: {ex.StackTrace ?? "N/A"}");
+
+            if (ex.InnerException != null)
+            {
+                exceptionDetails.AppendLine();
+                exceptionDetails.AppendLine("--- Inner Exception ---");
+                exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"Type: {ex.InnerException.GetType().FullName}");
+                exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"Message: {ex.InnerException.Message}");
+                exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"Source: {ex.InnerException.Source ?? "N/A"}");
+                exceptionDetails.AppendLine(CultureInfo.InvariantCulture, $"StackTrace: {ex.InnerException.StackTrace ?? "N/A"}");
+            }
+
+            var fullLog = $"{envDetails}\n{exceptionDetails}\n";
+
+            AppLogger.Log($"--- ERROR (pre-init fallback) ---\n{fullLog}");
+
+            await File.AppendAllTextAsync(errorLogPath, fullLog);
+
+            var userErrorMessage = fullLog +
+                                   "--------------------------------------------------------------------------------------------------------------\n\n\n";
+            await File.AppendAllTextAsync(userLogPath, userErrorMessage);
+        }
+        catch
+        {
+            // If even local logging fails, nothing more we can do
+        }
     }
 }
