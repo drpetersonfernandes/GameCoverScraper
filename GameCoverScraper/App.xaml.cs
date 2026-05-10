@@ -59,7 +59,7 @@ public partial class App
             AppLogger.Log($"Theme set to {settings.BaseTheme}.{settings.AccentColor}.");
 
             // Create and show the main window, passing the parsed startup arguments
-            var mainWindow = new MainWindow(StartupImageFolder, StartupRomFolder);
+            var mainWindow = new MainWindow(settings, StartupImageFolder, StartupRomFolder);
             mainWindow.Show();
         }
         catch (Exception ex)

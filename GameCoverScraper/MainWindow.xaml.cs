@@ -50,7 +50,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         }
     }
 
-    private SettingsManager? _settingsManager;
+    private readonly SettingsManager? _settingsManager;
 
     /// <summary>
     /// Gets the initialized settings manager. Throws if accessed before initialization.
@@ -70,7 +70,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     private readonly string? _startupImageFolder;
     private readonly string? _startupRomFolder;
 
-    public MainWindow(string? startupImageFolder = null, string? startupRomFolder = null)
+    public MainWindow(SettingsManager settingsManager, string? startupImageFolder = null, string? startupRomFolder = null)
     {
         InitializeComponent();
         AppLogger.Log("MainWindow initializing...");
@@ -81,6 +81,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         // Store startup arguments for later initialization
         _startupImageFolder = startupImageFolder;
         _startupRomFolder = startupRomFolder;
+        _settingsManager = settingsManager;
 
         // Initialize collections (required for DataContext binding)
         _mameLookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -101,10 +102,6 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
             // Initialize timers
             InitializeTimers();
-
-            // Initialize settings
-            _settingsManager = new SettingsManager();
-            Settings.LoadSettings();
 
             // Update UI based on settings
             SetCheckedStateForThemeAndAccent();
@@ -1716,6 +1713,12 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             _imageFolderWatcher.EnableRaisingEvents = false;
             _imageFolderWatcher.Created -= OnImageFileCreatedAsync;
         }
+
+        Dispose();
+
+        // Force process termination to prevent the app from staying alive
+        // in the background due to WebView2, background tasks, or WPF shutdown issues
+        Environment.Exit(0);
     }
 
     private async void SaveImage_ClickAsync(object sender, RoutedEventArgs e)
