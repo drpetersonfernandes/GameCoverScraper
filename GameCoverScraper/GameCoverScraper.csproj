@@ -57,7 +57,8 @@
         <PackageReference Include="Magick.NET-Q16-AnyCPU" Version="14.13.0" />
         <PackageReference Include="MahApps.Metro" Version="2.4.11" />
         <PackageReference Include="MessagePack" Version="3.1.4" />
-        <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3912.50" />
+        <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3967.48" />
+        <PackageReference Include="NAudio" Version="2.3.0" />
     </ItemGroup>
 
     <ItemGroup>
