@@ -216,6 +216,7 @@ public class BugReportServiceTests : IDisposable
     public async Task LogErrorAsyncWithInnerExceptionShouldOnlyLogFirstLevel()
     {
         var service = new BugReportService(_settings);
+        // ReSharper disable once NotResolvedInText
         var innerMost = new ArgumentNullException("param", "Parameter cannot be null");
         var inner = new InvalidOperationException("Inner operation failed", innerMost);
         var outerEx = new InvalidOperationException("Outer error", inner);

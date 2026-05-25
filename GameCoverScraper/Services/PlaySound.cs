@@ -8,6 +8,7 @@ public static class PlaySound
     private static readonly string SoundPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "audio", "click.mp3");
     private static readonly object Lock = new();
     private static WaveOutEvent? _waveOut;
+    private static Mp3FileReader? _audioFileReader;
 
     public static void PlayClickSound()
     {
@@ -28,8 +29,8 @@ public static class PlaySound
                 _waveOut = new WaveOutEvent();
                 _waveOut.PlaybackStopped += WaveOut_PlaybackStopped;
 
-                var audioFile = new Mp3FileReader(SoundPath);
-                _waveOut.Init(audioFile);
+                _audioFileReader = new Mp3FileReader(SoundPath);
+                _waveOut.Init(_audioFileReader);
                 _waveOut.Play();
             }
         }
@@ -57,10 +58,22 @@ public static class PlaySound
             _waveOut.Dispose();
             _waveOut = null;
         }
+
+        if (_audioFileReader != null)
+        {
+            _audioFileReader.Dispose();
+            _audioFileReader = null;
+        }
     }
 
     private static void WaveOut_PlaybackStopped(object? sender, StoppedEventArgs e)
     {
+        if (e.Exception != null)
+        {
+            AppLogger.Log($"Playback stopped with error: {e.Exception.Message}");
+            _ = BugReport.LogErrorAsync(e.Exception, $"Failed to play sound: {SoundPath}");
+        }
+
         lock (Lock)
         {
             CleanupAudioPlayer();
