@@ -22,10 +22,12 @@ It supports **Bing Web Image Search**, **Google Web Image Search**, and **Google
 -   **🎨 Customizable UI**: Light/Dark themes with 20+ accent colors.
 -   **📋 Missing Covers List**: Automatically generates a list of ROMs without corresponding cover art (checks for PNG, JPG, BMP, GIF, TIFF, WebP, AVIF).
 -   **🔧 Flexible Configuration**: Support for custom file extensions and search queries.
--   **🔄 Automatic Image Conversion**: Automatically converts downloaded images (JPG, BMP, GIF, TIFF, WebP, AVIF) to PNG format using SixLabors.ImageSharp. Also, automatically converts newly saved images in the image folder to PNG.
+-   **🔄 Automatic Image Conversion**: Automatically converts downloaded images (JPG, BMP, GIF, TIFF, WebP, AVIF) to PNG format using Magick.NET (ImageMagick). Also, automatically converts newly saved images in the image folder to PNG.
 -   **📝 Detailed Logging**: Built-in log viewer for troubleshooting and `app.log`/`error.log` files.
 -   **🎵 Sound Feedback**: Optional audio feedback for user actions.
 -   **🚀 Command-line Arguments**: Start the application with pre-set ROM and Image folders for quick scanning.
+-   **📋 Auto-Copy to Clipboard**: Automatically copies the selected ROM filename to the clipboard when navigating the missing covers list.
+-   **🔄 Automatic Updates**: Checks for new releases on startup via GitHub and notifies you when an update is available, with release notes and direct download links.
 
 ## 📦 Supported File Types
 
@@ -197,6 +199,7 @@ Access detailed logs via:
 -   **MessagePack** for efficient binary serialization.
 -   **MAME** team for the comprehensive arcade game database.
 -   **Microsoft.Web.WebView2** for embedding web content.
+-   **NAudio** for audio playback.
 
 ## 📄 License
 
