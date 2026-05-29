@@ -479,14 +479,12 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             catch (WebView2RuntimeNotFoundException ex)
             {
                 AppLogger.Log($"WebView2 Runtime not found: {ex.Message}");
-                _ = BugReport.LogErrorAsync(ex, "WebView2 initialization failed: Runtime not found.");
                 PromptWebView2Download("WebView2 Runtime Missing",
                     "The web browser component (Microsoft Edge WebView2 Runtime) is required for web search functionality, but it's not installed on your system.");
             }
             catch (COMException ex) when (ex.HResult == unchecked((int)0x80004004))
             {
                 AppLogger.Log("WebView2 initialization was aborted (E_ABORT) after all retry attempts.");
-                _ = BugReport.LogErrorAsync(ex, "WebView2 initialization was aborted (E_ABORT) after all retry attempts.");
                 PromptWebView2Download("WebView2 Initialization Failed",
                     "The web browser component (Microsoft Edge WebView2 Runtime) is required for web search functionality, but it could not be initialized.\n\n" +
                     "This can happen if the component is not installed, is outdated, or if there are permission issues with the data folder.");
