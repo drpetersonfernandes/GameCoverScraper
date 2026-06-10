@@ -489,6 +489,13 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                     "The web browser component (Microsoft Edge WebView2 Runtime) is required for web search functionality, but it could not be initialized.\n\n" +
                     "This can happen if the component is not installed, is outdated, or if there are permission issues with the data folder.");
             }
+            catch (COMException ex) when (ex.HResult == unchecked((int)0x80080005))
+            {
+                AppLogger.Log("WebView2 initialization failed with CO_E_SERVER_EXEC_FAILURE after all retry attempts.");
+                PromptWebView2Download("WebView2 Installation Problem",
+                    "The web browser component (Microsoft Edge WebView2 Runtime) could not start correctly (CO_E_SERVER_EXEC_FAILURE).\n\n" +
+                    "This usually means the WebView2 Runtime is corrupted or not properly installed. Please install or reinstall it.");
+            }
             catch (Exception ex)
             {
                 AppLogger.Log($"WebView2 initialization failed with an unexpected error: {ex.Message}");
@@ -556,6 +563,12 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             {
                 retryCount++;
                 AppLogger.Log($"WebView2 initialization aborted (E_ABORT), retrying in 500ms... (attempt {retryCount}/{maxRetries})");
+                await Task.Delay(500);
+            }
+            catch (COMException ex) when (ex.HResult == unchecked((int)0x80080005) && retryCount < maxRetries)
+            {
+                retryCount++;
+                AppLogger.Log($"WebView2 initialization failed with CO_E_SERVER_EXEC_FAILURE, retrying in 500ms... (attempt {retryCount}/{maxRetries})");
                 await Task.Delay(500);
             }
         }
