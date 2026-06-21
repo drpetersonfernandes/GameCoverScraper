@@ -6,6 +6,10 @@
         <Nullable>enable</Nullable>
         <IsPackable>false</IsPackable>
         <LangVersion>14</LangVersion>
+        <Company>PureLogicCode.com</Company>
+        <AssemblyVersion>1.7.1</AssemblyVersion>
+        <FileVersion>1.7.1</FileVersion>
+        <NeutralLanguage>en</NeutralLanguage>
     </PropertyGroup>
 
     <ItemGroup>
