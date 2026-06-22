@@ -1,5 +1,5 @@
 using System.IO;
-using GameCoverScraper.models;
+using GameCoverScraper.Models;
 using GameCoverScraper.Services;
 using MessagePack;
 

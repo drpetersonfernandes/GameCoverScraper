@@ -1,5 +1,5 @@
 using FluentAssertions;
-using GameCoverScraper.models;
+using GameCoverScraper.Models;
 using Xunit;
 
 namespace GameCoverScraper.Tests.Models;

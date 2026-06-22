@@ -1,328 +1,534 @@
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
+using System.Windows;
 using System.Xml.Linq;
 using GameCoverScraper.Services;
+using MessageBox = System.Windows.MessageBox;
 
 namespace GameCoverScraper.Managers;
 
-public class SettingsManager
+public class SettingsManager : INotifyPropertyChanged
 {
-    private static readonly object SettingsLock = new();
-    private static readonly string SettingsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings.xml");
-    private int _thumbnailSize = DefaultThumbnailSize;
-    private const int DefaultThumbnailSize = 300;
-    private const int MinThumbnailSize = 50;
-    private const int MaxThumbnailSize = 800;
+    public static SettingsManager? CurrentInstance { get; private set; }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void OnPropertyChanged(string propertyName)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    private static readonly string SettingsFilePath =
+        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, AppConstants.SettingsFileName);
+
+    private readonly object _saveLock = new();
+    private static readonly object FileLock = new();
+
+    // --- Similarity settings (from FindRomCover) ---
+
+    private double _similarityThreshold;
+
+    public double SimilarityThreshold
+    {
+        get => _similarityThreshold;
+        set
+        {
+            value = Math.Clamp(value, 0, 100);
+            if (Math.Abs(_similarityThreshold - value) < 0.01) return;
+
+            _similarityThreshold = value;
+            OnPropertyChanged(nameof(SimilarityThreshold));
+        }
+    }
+
+    private string _selectedSimilarityAlgorithm = string.Empty;
+
+    public string SelectedSimilarityAlgorithm
+    {
+        get => _selectedSimilarityAlgorithm;
+        set
+        {
+            if (_selectedSimilarityAlgorithm == value) return;
+
+            _selectedSimilarityAlgorithm = value;
+            OnPropertyChanged(nameof(SelectedSimilarityAlgorithm));
+        }
+    }
+
+    private int _maxImagesToLoad = 30;
+
+    public int MaxImagesToLoad
+    {
+        get => _maxImagesToLoad;
+        set
+        {
+            value = Math.Clamp(value, 1, 1000);
+            if (_maxImagesToLoad == value) return;
+
+            _maxImagesToLoad = value;
+            OnPropertyChanged(nameof(MaxImagesToLoad));
+        }
+    }
+
+    private int _imageLoaderMaxRetries = 3;
+
+    public int ImageLoaderMaxRetries
+    {
+        get => _imageLoaderMaxRetries;
+        set
+        {
+            value = Math.Clamp(value, 0, 20);
+            if (_imageLoaderMaxRetries == value) return;
+
+            _imageLoaderMaxRetries = value;
+            OnPropertyChanged(nameof(ImageLoaderMaxRetries));
+        }
+    }
+
+    private int _imageLoaderRetryDelayMilliseconds = 200;
+
+    public int ImageLoaderRetryDelayMilliseconds
+    {
+        get => _imageLoaderRetryDelayMilliseconds;
+        set
+        {
+            value = Math.Clamp(value, 0, 10000);
+            if (_imageLoaderRetryDelayMilliseconds == value) return;
+
+            _imageLoaderRetryDelayMilliseconds = value;
+            OnPropertyChanged(nameof(ImageLoaderRetryDelayMilliseconds));
+        }
+    }
+
+    private int _apiTimeoutSeconds = 30;
+
+    public int ApiTimeoutSeconds
+    {
+        get => _apiTimeoutSeconds;
+        set
+        {
+            value = Math.Clamp(value, 1, 300);
+            if (_apiTimeoutSeconds == value) return;
+
+            _apiTimeoutSeconds = value;
+            OnPropertyChanged(nameof(ApiTimeoutSeconds));
+        }
+    }
+
+    private string _lastImageFolder = string.Empty;
+
+    public string LastImageFolder
+    {
+        get => _lastImageFolder;
+        set
+        {
+            if (_lastImageFolder == value) return;
+
+            _lastImageFolder = value;
+            OnPropertyChanged(nameof(LastImageFolder));
+        }
+    }
+
+    // --- Thumbnail settings (merged: ImageWidth/ImageHeight from FindRomCover, ThumbnailSize from GameCoverScraper) ---
+
+    private int _imageWidth = 300;
+
+    public int ImageWidth
+    {
+        get => _imageWidth;
+        set
+        {
+            value = Math.Clamp(value, 50, 2000);
+            if (_imageWidth == value) return;
+
+            _imageWidth = value;
+            OnPropertyChanged(nameof(ImageWidth));
+        }
+    }
+
+    private int _imageHeight = 300;
+
+    public int ImageHeight
+    {
+        get => _imageHeight;
+        set
+        {
+            value = Math.Clamp(value, 50, 2000);
+            if (_imageHeight == value) return;
+
+            _imageHeight = value;
+            OnPropertyChanged(nameof(ImageHeight));
+        }
+    }
 
     public int ThumbnailSize
     {
-        get
-        {
-            lock (SettingsLock)
-            {
-                return _thumbnailSize;
-            }
-        }
+        get => _imageWidth;
         set
         {
-            lock (SettingsLock)
-            {
-                if (value is < MinThumbnailSize or > MaxThumbnailSize)
-                    throw new ArgumentOutOfRangeException(nameof(value), $"Thumbnail size must be between {MinThumbnailSize} and {MaxThumbnailSize}.");
-
-                _thumbnailSize = value;
-            }
+            ImageWidth = value;
+            ImageHeight = value;
         }
     }
 
-    public string SearchEngine
-    {
-        get
-        {
-            lock (SettingsLock)
-            {
-                return _searchEngine;
-            }
-        }
-        set
-        {
-            lock (SettingsLock)
-            {
-                _searchEngine = value;
-            }
-        }
-    }
+    // --- Theme settings ---
 
-    private string _searchEngine = DefaultSearchEngine;
-    private const string DefaultSearchEngine = "BingWeb";
+    private static readonly HashSet<string> ValidBaseThemes = new(StringComparer.OrdinalIgnoreCase) { "Light", "Dark" };
+
+    private string _baseTheme = "Light";
 
     public string BaseTheme
     {
-        get
-        {
-            lock (SettingsLock)
-            {
-                return _baseTheme;
-            }
-        }
+        get => _baseTheme;
         set
         {
-            lock (SettingsLock)
+            if (string.IsNullOrWhiteSpace(value) || !ValidBaseThemes.Contains(value))
             {
-                _baseTheme = value;
+                value = "Light";
             }
+
+            if (_baseTheme == value) return;
+
+            _baseTheme = value;
+            OnPropertyChanged(nameof(BaseTheme));
         }
     }
 
-    private string _baseTheme = DefaultBaseTheme;
-    private const string DefaultBaseTheme = "Light";
+    private static readonly HashSet<string> ValidAccentColors = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Red", "Green", "Blue", "Orange", "Purple", "Pink", "Lime", "Emerald",
+        "Teal", "Cyan", "Cobalt", "Indigo", "Violet", "Magenta", "Crimson",
+        "Amber", "Yellow", "Brown", "Olive", "Steel", "Mauve", "Taupe", "Sienna"
+    };
+
+    private string _accentColor = "Blue";
 
     public string AccentColor
     {
-        get
-        {
-            lock (SettingsLock)
-            {
-                return _accentColor;
-            }
-        }
+        get => _accentColor;
         set
         {
-            lock (SettingsLock)
+            if (string.IsNullOrWhiteSpace(value) || !ValidAccentColors.Contains(value))
             {
-                _accentColor = value;
+                value = "Blue";
             }
+
+            if (_accentColor == value) return;
+
+            _accentColor = value;
+            OnPropertyChanged(nameof(AccentColor));
         }
     }
 
-    private string _accentColor = DefaultAccentColor;
-    private const string DefaultAccentColor = "Blue";
-
-    public bool UseMameDescriptions
-    {
-        get
-        {
-            lock (SettingsLock)
-            {
-                return _useMameDescriptions;
-            }
-        }
-        set
-        {
-            lock (SettingsLock)
-            {
-                _useMameDescriptions = value;
-            }
-        }
-    }
+    // --- MAME settings ---
 
     private bool _useMameDescriptions;
 
-    public List<string> SupportedExtensions
+    public bool UseMameDescriptions
     {
-        get
-        {
-            lock (SettingsLock)
-            {
-                return _supportedExtensions;
-            }
-        }
+        get => _useMameDescriptions;
         set
         {
-            lock (SettingsLock)
-            {
-                _supportedExtensions = value;
-            }
+            if (_useMameDescriptions == value) return;
+
+            _useMameDescriptions = value;
+            OnPropertyChanged(nameof(UseMameDescriptions));
         }
     }
 
-    private List<string> _supportedExtensions = new();
+    // Alias for FindRomCover compatibility
+    public bool UseMameDescription
+    {
+        get => UseMameDescriptions;
+        set => UseMameDescriptions = value;
+    }
+
+    // --- Extensions ---
+
+    private string[] _supportedExtensions = Array.Empty<string>();
+
+    public string[] SupportedExtensions
+    {
+        get => _supportedExtensions;
+        set
+        {
+            if (_supportedExtensions.SequenceEqual(value)) return;
+
+            _supportedExtensions = value;
+            OnPropertyChanged(nameof(SupportedExtensions));
+        }
+    }
+
+    // --- GameCoverScraper-specific settings ---
+
+    private string _searchEngine = "BingWeb";
+
+    public string SearchEngine
+    {
+        get => _searchEngine;
+        set
+        {
+            if (_searchEngine == value) return;
+
+            _searchEngine = value;
+            OnPropertyChanged(nameof(SearchEngine));
+        }
+    }
+
+    private string _bugReportApiKey = "hjh7yu6t56tyr540o9u8767676r5674534453235264c75b6t7ggghgg76trf564e";
 
     public string BugReportApiKey
     {
-        get
-        {
-            lock (SettingsLock)
-            {
-                return _bugReportApiKey;
-            }
-        }
+        get => _bugReportApiKey;
         set
         {
-            lock (SettingsLock)
-            {
-                _bugReportApiKey = value;
-            }
+            if (_bugReportApiKey == value) return;
+
+            _bugReportApiKey = value;
+            OnPropertyChanged(nameof(BugReportApiKey));
         }
     }
 
-    private string _bugReportApiKey = DefaultBugReportApiKey;
-    private const string DefaultBugReportApiKey = "hjh7yu6t56tyr540o9u8767676r5674534453235264c75b6t7ggghgg76trf564e";
+    private string _bugReportApiUrl = "https://www.purelogiccode.com/bugreport/api/send-bug-report";
 
     public string BugReportApiUrl
     {
-        get
-        {
-            lock (SettingsLock)
-            {
-                return _bugReportApiUrl;
-            }
-        }
+        get => _bugReportApiUrl;
         set
         {
-            lock (SettingsLock)
-            {
-                _bugReportApiUrl = value;
-            }
-        }
-    }
+            if (_bugReportApiUrl == value) return;
 
-    private string _bugReportApiUrl = DefaultBugReportApiUrl;
-    private const string DefaultBugReportApiUrl = "https://www.purelogiccode.com/bugreport/api/send-bug-report";
-
-    private static readonly List<string> DefaultSupportedExtensions =
-    [
-        "zip", "rar", "7z", "gba", "gb", "gbc", "nes", "snes", "sfc", "smc",
-        "md", "smd", "gen", "32x", "sgg", "sg", "sc", "ms", "gg", "rom", "bin"
-    ];
-
-    public string GoogleKey
-    {
-        get
-        {
-            lock (SettingsLock)
-            {
-                return _googleKey;
-            }
-        }
-        set
-        {
-            lock (SettingsLock)
-            {
-                _googleKey = value;
-            }
+            _bugReportApiUrl = value;
+            OnPropertyChanged(nameof(BugReportApiUrl));
         }
     }
 
     private string _googleKey = string.Empty;
 
-    public string GoogleSearchEngineId
+    public string GoogleKey
     {
-        get
-        {
-            lock (SettingsLock)
-            {
-                return _googleSearchEngineId;
-            }
-        }
+        get => _googleKey;
         set
         {
-            lock (SettingsLock)
-            {
-                _googleSearchEngineId = value;
-            }
+            if (_googleKey == value) return;
+
+            _googleKey = value;
+            OnPropertyChanged(nameof(GoogleKey));
         }
     }
 
     private string _googleSearchEngineId = "d30e97188f5914611";
 
+    public string GoogleSearchEngineId
+    {
+        get => _googleSearchEngineId;
+        set
+        {
+            if (_googleSearchEngineId == value) return;
+
+            _googleSearchEngineId = value;
+            OnPropertyChanged(nameof(GoogleSearchEngineId));
+        }
+    }
+
+    // --- Constructor and Load/Save ---
+
+    public SettingsManager()
+    {
+        CurrentInstance = this;
+        LoadSettings();
+    }
+
     public void LoadSettings()
     {
-        lock (SettingsLock)
+        try
         {
-            AppLogger.Log("Loading settings from settings.xml.");
             if (!File.Exists(SettingsFilePath))
             {
-                AppLogger.Log("settings.xml not found. Creating and saving default settings.");
-                _supportedExtensions = new List<string>(DefaultSupportedExtensions);
-                SaveSettings();
+                SetDefaultSettings();
+                try { SaveSettings(); }
+                catch (Exception saveEx) { _ = ErrorLogger.LogAsync(saveEx, "Failed to save default settings to settings.xml"); }
                 return;
             }
 
-            try
+            var doc = XDocument.Load(SettingsFilePath);
+            var root = doc.Element("Settings");
+
+            if (root == null)
             {
-                var doc = XDocument.Load(SettingsFilePath);
-                var root = doc.Element("Settings") ?? throw new InvalidOperationException("Invalid settings file format.");
-
-                var parsedSize = int.Parse(root.Element("ThumbnailSize")?.Value ?? DefaultThumbnailSize.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
-                _thumbnailSize = parsedSize is >= MinThumbnailSize and <= MaxThumbnailSize ? parsedSize : DefaultThumbnailSize;
-                _searchEngine = root.Element("SearchEngine")?.Value ?? DefaultSearchEngine;
-                _baseTheme = root.Element("BaseTheme")?.Value ?? DefaultBaseTheme;
-                _accentColor = root.Element("AccentColor")?.Value ?? DefaultAccentColor;
-                _useMameDescriptions = bool.Parse(root.Element("UseMameDescriptions")?.Value ?? "false");
-                _bugReportApiKey = root.Element("BugReportApiKey")?.Value ?? DefaultBugReportApiKey;
-                _bugReportApiUrl = root.Element("BugReportApiUrl")?.Value ?? DefaultBugReportApiUrl;
-                _supportedExtensions = root.Element("SupportedExtensions")?
-                    .Elements("Extension")
-                    .Select(static x => x.Value)
-                    .ToList() ?? new List<string>();
-                _googleKey = root.Element("GoogleKey")?.Value ?? string.Empty;
-                _googleSearchEngineId = root.Element("GoogleSearchEngineId")?.Value ?? "d30e97188f5914611";
-
-                AppLogger.Log("Settings loaded successfully.");
-                if (_supportedExtensions.Count != 0)
-                {
-                    return;
-                }
-
-                AppLogger.Log("Supported extensions list was empty, populating with defaults.");
-                _supportedExtensions = new List<string>(DefaultSupportedExtensions);
-
-                SaveSettings();
+                throw new InvalidDataException("The settings.xml file is missing the root <Settings> element.");
             }
-            catch (Exception ex)
+
+            string GetValue(string elementName, string defaultValue)
             {
-                AppLogger.Log($"Error loading settings.xml. Reverting to defaults. Error: {ex.Message}");
-                _ = BugReport.LogErrorAsync(ex, "Error loading settings.xml. Reverting to defaults.");
-
-                _thumbnailSize = DefaultThumbnailSize;
-                _searchEngine = DefaultSearchEngine;
-                _baseTheme = DefaultBaseTheme;
-                _accentColor = DefaultAccentColor;
-                _useMameDescriptions = false;
-                _bugReportApiKey = DefaultBugReportApiKey;
-                _bugReportApiUrl = DefaultBugReportApiUrl;
-                _supportedExtensions = new List<string>(DefaultSupportedExtensions);
-                _googleKey = string.Empty;
-                _googleSearchEngineId = "d30e97188f5914611";
-
-                SaveSettings();
+                return root.Element(elementName)?.Value ?? defaultValue;
             }
+
+            SimilarityThreshold = double.Parse(GetValue("SimilarityThreshold", "70"), CultureInfo.InvariantCulture);
+            SelectedSimilarityAlgorithm = GetValue("SimilarityAlgorithm", "Jaro-Winkler Distance");
+            BaseTheme = GetValue("BaseTheme", "Light");
+            AccentColor = GetValue("AccentColor", "Blue");
+
+            var imageSizeElement = root.Element("ImageSize");
+            if (imageSizeElement != null)
+            {
+                ImageWidth = int.Parse(imageSizeElement.Element("Width")?.Value ?? "300", CultureInfo.InvariantCulture);
+                ImageHeight = int.Parse(imageSizeElement.Element("Height")?.Value ?? "300", CultureInfo.InvariantCulture);
+            }
+            else
+            {
+                var parsedSize = int.Parse(GetValue("ThumbnailSize", "300"), CultureInfo.InvariantCulture);
+                ImageWidth = parsedSize;
+                ImageHeight = parsedSize;
+            }
+
+            MaxImagesToLoad = int.Parse(GetValue("MaxImagesToLoad", "30"), CultureInfo.InvariantCulture);
+            ImageLoaderMaxRetries = int.Parse(GetValue("ImageLoaderMaxRetries", "3"), CultureInfo.InvariantCulture);
+            ImageLoaderRetryDelayMilliseconds = int.Parse(GetValue("ImageLoaderRetryDelayMilliseconds", "200"), CultureInfo.InvariantCulture);
+            ApiTimeoutSeconds = int.Parse(GetValue("ApiTimeoutSeconds", "30"), CultureInfo.InvariantCulture);
+
+            SearchEngine = GetValue("SearchEngine", "BingWeb");
+            BugReportApiKey = GetValue("BugReportApiKey", "hjh7yu6t56tyr540o9u8767676r5674534453235264c75b6t7ggghgg76trf564e");
+            BugReportApiUrl = GetValue("BugReportApiUrl", "https://www.purelogiccode.com/bugreport/api/send-bug-report");
+            GoogleKey = GetValue("GoogleKey", string.Empty);
+            GoogleSearchEngineId = GetValue("GoogleSearchEngineId", "d30e97188f5914611");
+
+            var extensionsElement = root.Element("SupportedExtensions");
+            if (extensionsElement != null)
+            {
+                SupportedExtensions = extensionsElement.Elements("Extension")
+                    .Select(static e => e.Value)
+                    .Where(static e => !string.IsNullOrEmpty(e))
+                    .ToArray();
+            }
+
+            if (SupportedExtensions.Length == 0)
+            {
+                SupportedExtensions = GetDefaultExtensions();
+            }
+
+            var useMameDescValue = GetValue("UseMameDescriptions", GetValue("UseMameDescription", "false"));
+            UseMameDescriptions = string.Equals(useMameDescValue, "true", StringComparison.OrdinalIgnoreCase);
+
+            LastImageFolder = GetValue("LastImageFolder", string.Empty);
+        }
+        catch (Exception ex)
+        {
+            _ = ErrorLogger.LogAsync(ex, "Error loading settings from settings.xml");
+            SetDefaultSettings();
+            try { SaveSettings(); }
+            catch (Exception saveEx) { _ = ErrorLogger.LogAsync(saveEx, "Failed to save default settings after load error"); }
         }
     }
 
     public void SaveSettings()
     {
-        lock (SettingsLock)
+        XDocument doc;
+        lock (_saveLock)
         {
-            AppLogger.Log("Saving settings to settings.xml.");
-            var doc = new XDocument(
+            doc = new XDocument(
                 new XElement("Settings",
-                    new XElement("ThumbnailSize", _thumbnailSize),
-                    new XElement("SearchEngine", _searchEngine),
-                    new XElement("BaseTheme", _baseTheme),
-                    new XElement("AccentColor", _accentColor),
-                    new XElement("UseMameDescriptions", _useMameDescriptions),
-                    new XElement("BugReportApiKey", _bugReportApiKey),
-                    new XElement("BugReportApiUrl", _bugReportApiUrl),
-                    new XElement("SupportedExtensions", _supportedExtensions.Select(static ext => new XElement("Extension", ext))),
-                    new XElement("GoogleKey", _googleKey),
-                    new XElement("GoogleSearchEngineId", _googleSearchEngineId)
+                    new XElement("SimilarityThreshold", SimilarityThreshold.ToString(CultureInfo.InvariantCulture)),
+                    new XElement("SimilarityAlgorithm", SelectedSimilarityAlgorithm),
+                    new XElement("SupportedExtensions",
+                        SupportedExtensions.Select(static ext => new XElement("Extension", ext))
+                    ),
+                    new XElement("ImageSize",
+                        new XElement("Width", ImageWidth),
+                        new XElement("Height", ImageHeight)
+                    ),
+                    new XElement("MaxImagesToLoad", MaxImagesToLoad),
+                    new XElement("ImageLoaderMaxRetries", ImageLoaderMaxRetries),
+                    new XElement("ImageLoaderRetryDelayMilliseconds", ImageLoaderRetryDelayMilliseconds),
+                    new XElement("ApiTimeoutSeconds", ApiTimeoutSeconds),
+                    new XElement("BaseTheme", BaseTheme),
+                    new XElement("AccentColor", AccentColor),
+                    new XElement("UseMameDescriptions", UseMameDescriptions.ToString().ToLowerInvariant()),
+                    new XElement("LastImageFolder", LastImageFolder),
+                    new XElement("SearchEngine", SearchEngine),
+                    new XElement("BugReportApiKey", BugReportApiKey),
+                    new XElement("BugReportApiUrl", BugReportApiUrl),
+                    new XElement("GoogleKey", GoogleKey),
+                    new XElement("GoogleSearchEngineId", GoogleSearchEngineId)
                 )
             );
+        }
 
+        var tempFilePath = SettingsFilePath + ".tmp";
+        lock (FileLock)
+        {
             try
             {
-                // Use FileStream with FileShare.None to prevent concurrent access issues
-                using var fileStream = new FileStream(SettingsFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
-                doc.Save(fileStream);
-                AppLogger.Log("Settings saved successfully.");
+                doc.Save(tempFilePath);
+                File.Copy(tempFilePath, SettingsFilePath, true);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                ShowSaveError($"Access denied to settings.xml: {ex.Message}\n\nTry running as administrator.");
+                _ = ErrorLogger.LogAsync(ex, "Failed to save settings");
+            }
+            catch (IOException ex)
+            {
+                ShowSaveError($"Error saving settings to settings.xml: {ex.Message}");
+                _ = ErrorLogger.LogAsync(ex, "Failed to save settings");
             }
             catch (Exception ex)
             {
-                AppLogger.Log($"Error saving settings.xml. Error: {ex.Message}");
-                _ = BugReport.LogErrorAsync(ex, "Error saving settings.xml.");
+                ShowSaveError($"Error saving settings to settings.xml: {ex.Message}");
+                _ = ErrorLogger.LogAsync(ex, "Failed to save settings");
+            }
+            finally
+            {
+                try { if (File.Exists(tempFilePath)) File.Delete(tempFilePath); }
+                catch (Exception cleanupEx) { _ = ErrorLogger.LogAsync(cleanupEx, $"Failed to cleanup settings temp file: {tempFilePath}"); }
             }
         }
+    }
+
+    private static void ShowSaveError(string message)
+    {
+        if (Application.Current != null)
+        {
+            MessageBox.Show(message, "Settings Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        else
+        {
+            _ = ErrorLogger.LogAsync(new InvalidOperationException(message), "Settings save error (no UI available)");
+        }
+    }
+
+    private void SetDefaultSettings()
+    {
+        _similarityThreshold = double.Parse(AppConstants.Messages.DefaultSimilarityThreshold, CultureInfo.InvariantCulture);
+        _selectedSimilarityAlgorithm = AppConstants.Algorithms.JaroWinkler;
+        _supportedExtensions = GetDefaultExtensions();
+        _imageWidth = 300;
+        _imageHeight = 300;
+        _baseTheme = AppConstants.Themes.Light;
+        _accentColor = "Blue";
+        _useMameDescriptions = false;
+        _lastImageFolder = string.Empty;
+        _searchEngine = "BingWeb";
+        _bugReportApiKey = "hjh7yu6t56tyr540o9u8767676r5674534453235264c75b6t7ggghgg76trf564e";
+        _bugReportApiUrl = "https://www.purelogiccode.com/bugreport/api/send-bug-report";
+        _googleKey = string.Empty;
+        _googleSearchEngineId = "d30e97188f5914611";
+    }
+
+    private static string[] GetDefaultExtensions()
+    {
+        return
+        [
+            "2hd", "3ds", "7z", "88d", "a78", "arc", "bat", "bin", "bs", "cas", "ccd", "cdi", "cdt", "chd", "cht",
+            "ciso", "cmd", "col", "cpr", "cso", "cue", "cv", "d64", "d71", "d81", "d88", "dim", "dol", "dsk", "dup",
+            "elf", "exe", "fdi", "fds", "fig", "g64", "gb", "gcm", "gcz", "gdi", "gg", "gz", "hdf", "hdm", "img",
+            "int", "ipf", "iso", "lnk", "lnx", "m3u", "mdf", "mds", "ms1", "msa", "mx1", "mx2", "n64", "nbz", "nca",
+            "ndd", "nds", "nes", "nib", "nrg", "nro", "nso", "nsp", "o", "pbp", "pce", "prg", "prx", "rar", "ri",
+            "rom", "rvz", "sc", "scl", "sda", "sf", "sfc", "sfx", "sg", "smc", "sms", "sna", "st", "stx", "swc",
+            "t64", "tap", "tgc", "toc", "trd", "tzx", "u1", "unf", "unif", "v64", "voc", "wad", "wbfs", "wua", "xci",
+            "xdf", "z64", "z80", "zip", "zso",
+            "gba", "gbc", "snes", "smc", "md", "smd", "gen", "32x", "sgg"
+        ];
     }
 }

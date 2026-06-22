@@ -1,4 +1,4 @@
-namespace GameCoverScraper.models;
+namespace GameCoverScraper.Models;
 
 public sealed class GoogleSearchResult
 {

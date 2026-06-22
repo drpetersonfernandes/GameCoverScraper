@@ -5,7 +5,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Web;
 using GameCoverScraper.Managers;
-using GameCoverScraper.models;
+using GameCoverScraper.Models;
 using GameCoverScraper.Services;
 
 namespace GameCoverScraper.ApiProvider;

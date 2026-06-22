@@ -3,7 +3,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Windows;
-using GameCoverScraper.models;
+using GameCoverScraper.Models;
 
 namespace GameCoverScraper.Services;
 

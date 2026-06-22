@@ -2,7 +2,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Text;
 using System.Windows;
-using GameCoverScraper.models;
+using GameCoverScraper.Models;
 using GameCoverScraper.Services;
 
 namespace GameCoverScraper;

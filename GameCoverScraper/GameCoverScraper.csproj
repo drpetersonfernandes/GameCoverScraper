@@ -6,10 +6,11 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <UseWPF>true</UseWPF>
-        <ApplicationIcon>images\scraper.ico</ApplicationIcon>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <ApplicationIcon>icon\scraper.ico</ApplicationIcon>
         <PackageIcon>icon2.png</PackageIcon>
-        <AssemblyVersion>1.7.1</AssemblyVersion>
-        <FileVersion>1.7.1</FileVersion>
+        <AssemblyVersion>2.0.0</AssemblyVersion>
+        <FileVersion>2.0.0</FileVersion>
         <LangVersion>14</LangVersion>
         <DebugType>embedded</DebugType>
         <DebugSymbols>true</DebugSymbols>
@@ -36,7 +37,6 @@
         <Resource Include="images\default.png">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Resource>
-        <Content Include="images\icon.ico" />
         <None Remove="images\theme.png" />
         <Resource Include="images\theme.png" />
         <None Remove="images\about.png" />
@@ -51,21 +51,36 @@
         <Resource Include="images\keys.png" />
         <None Remove="images\settings.png" />
         <Resource Include="images\settings.png" />
+        <None Remove="images\brokenimage.png" />
+        <Resource Include="images\brokenimage.png" />
+        <None Remove="images\copy.png" />
+        <Resource Include="images\copy.png" />
+        <None Remove="images\usethis.png" />
+        <Resource Include="images\usethis.png" />
+        <None Remove="images\folder.png" />
+        <Resource Include="images\folder.png" />
+        <None Remove="icon\scraper.ico" />
+        <EmbeddedResource Include="icon\scraper.ico" />
+        <None Remove="icon\scraper.png" />
+        <Resource Include="icon\scraper.png" />
     </ItemGroup>
 
     <ItemGroup>
+        <PackageReference Include="ControlzEx" Version="7.0.4" />
         <PackageReference Include="Magick.NET-Q16-AnyCPU" Version="14.14.0" />
-        <PackageReference Include="MahApps.Metro" Version="2.4.11" />
+        <PackageReference Include="MahApps.Metro" Version="3.0.0-rc0529" />
         <PackageReference Include="MessagePack" Version="3.1.7" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.9" />
         <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4022.49" />
         <PackageReference Include="NAudio" Version="2.3.0" />
     </ItemGroup>
 
     <ItemGroup>
-        <None Update="images\icon2.png">
-            <Pack>True</Pack>
-            <PackagePath>\</PackagePath>
-        </None>
+        <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
+    </ItemGroup>
+
+    <ItemGroup>
         <None Update="settings.xml">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>

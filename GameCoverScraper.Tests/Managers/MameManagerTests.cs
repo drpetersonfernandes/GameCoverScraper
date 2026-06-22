@@ -1,6 +1,6 @@
 using FluentAssertions;
 using GameCoverScraper.Managers;
-using GameCoverScraper.models;
+using GameCoverScraper.Models;
 using MessagePack;
 using Xunit;
 

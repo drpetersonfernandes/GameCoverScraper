@@ -6,7 +6,6 @@
                       xmlns:controls="http://metro.mahapps.com/winfx/xaml/controls"
                       mc:Ignorable="d"
                       Title="Application Log" Height="450" Width="800"
-                      GlowBrush="{DynamicResource MahApps.Brushes.Accent}"
                       WindowStartupLocation="CenterScreen"
                       ToolTip="Application log window for debugging and monitoring">
     <Grid>
@@ -28,12 +27,7 @@
         <TextBox x:Name="LogTextBox"
                  Grid.Row="1"
                  Margin="5,0,5,5"
-                 FontFamily="Consolas"
-                 FontSize="12"
-                 TextWrapping="Wrap"
-                 IsReadOnly="True"
-                 AcceptsReturn="True"
-                 VerticalScrollBarVisibility="Auto"
+                 Style="{StaticResource LogTextBoxStyle}"
                  SelectionChanged="LogTextBox_SelectionChanged"
                  ToolTip="Application log output. Right-click for copy options.">
             <TextBox.ContextMenu>

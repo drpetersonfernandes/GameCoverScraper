@@ -2,7 +2,7 @@ using System.Text.Json;
 using FluentAssertions;
 using GameCoverScraper.ApiProvider;
 using GameCoverScraper.Managers;
-using GameCoverScraper.models;
+using GameCoverScraper.Models;
 using Xunit;
 
 namespace GameCoverScraper.Tests.ApiProvider;

@@ -1,17 +1,44 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows.Media.Imaging;
 
-namespace GameCoverScraper.models;
+namespace GameCoverScraper.Models;
 
 public class ImageData : INotifyPropertyChanged
 {
+    private static readonly Lazy<BitmapImage> BrokenImageLazy = new(static () =>
+    {
+        try
+        {
+            var bitmap = new BitmapImage(new Uri("pack://application:,,,/images/brokenimage.png"));
+            if (bitmap.CanFreeze)
+                bitmap.Freeze();
+            return bitmap;
+        }
+        catch
+        {
+            var bitmap = new BitmapImage();
+            if (bitmap.CanFreeze)
+                bitmap.Freeze();
+            return bitmap;
+        }
+    });
+
     private int _imageWidth;
     private int _imageHeight;
 
-    public required string? ImagePath { get; set; }
-    public string ImageName { get; set; } = "Unknown Filename";
+    public string? ImagePath { get; init; }
+    public string? ImageName { get; set; } = "Unknown Filename";
     public string ImageFileSize { get; set; } = "Unknown File Size";
     public string ImageEncodingFormat { get; set; } = "Unknown Encoding Format";
+
+    public double SimilarityScore { get; init; }
+
+    public BitmapImage? ImageSource { get; init; }
+
+    public BitmapImage DisplayImage => ImageSource ?? BrokenImageLazy.Value;
+
+    public System.Windows.Controls.ContextMenu? CachedContextMenu { get; set; }
 
     public int ImageWidth
     {
@@ -59,6 +86,15 @@ public class ImageData : INotifyPropertyChanged
             field = value;
             OnPropertyChanged();
         }
+    }
+
+    public ImageData() { }
+
+    public ImageData(string? imagePath, string? imageName, double similarityScore)
+    {
+        ImagePath = imagePath;
+        ImageName = imageName;
+        SimilarityScore = similarityScore;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

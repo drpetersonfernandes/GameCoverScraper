@@ -19,7 +19,8 @@
             Grid.Row="0"
             Margin="10"
             HorizontalAlignment="Center"
-            Orientation="Horizontal">
+            Orientation="Horizontal"
+            ToolTip="Application logo">
             <Image
                 Width="150"
                 Height="150"
@@ -27,7 +28,8 @@
                 ToolTip="GameCoverScraper logo" />
         </StackPanel>
 
-        <StackPanel Grid.Row="1" Margin="10">
+        <StackPanel Grid.Row="1" Margin="10"
+                    ToolTip="Application information">
             <TextBlock FontWeight="Bold" Text="GameCoverScraper"
                        ToolTip="Application name" />
             <TextBlock Text="Organize your ROM images collection"
@@ -48,7 +50,8 @@
             Grid.Row="2"
             Margin="10"
             HorizontalAlignment="Center"
-            Orientation="Horizontal">
+            Orientation="Horizontal"
+            ToolTip="Window controls">
             <Button
                 Width="120"
                 Margin="10,0,0,0"
