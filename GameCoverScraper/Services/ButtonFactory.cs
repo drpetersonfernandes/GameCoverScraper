@@ -100,6 +100,22 @@ public static class ButtonFactory
         };
         contextMenu.Items.Add(openLocationMenuItem);
 
+        var openFileIcon = new Image
+        {
+            Source = CreateFrozenBitmapImage("pack://application:,,,/images/usethis.png"),
+            Width = 16,
+            Height = 16,
+            Margin = new Thickness(2)
+        };
+        var openFileMenuItem = new MenuItem
+        {
+            Header = "Open File",
+            Command = OpenFileCommand,
+            CommandParameter = imagePath,
+            Icon = openFileIcon
+        };
+        contextMenu.Items.Add(openFileMenuItem);
+
         return contextMenu;
     }
 
@@ -135,6 +151,24 @@ public static class ButtonFactory
             {
                 FileName = "explorer.exe",
                 Arguments = $"/select,\"{imagePath}\"",
+                UseShellExecute = true
+            };
+            System.Diagnostics.Process.Start(processStartInfo);
+        }
+    });
+
+    private static ICommand OpenFileCommand { get; } = new DelegateCommand(static param =>
+    {
+        if (param is not string imagePath || string.IsNullOrEmpty(imagePath))
+        {
+            return;
+        }
+
+        if (File.Exists(imagePath))
+        {
+            var processStartInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = imagePath,
                 UseShellExecute = true
             };
             System.Diagnostics.Process.Start(processStartInfo);

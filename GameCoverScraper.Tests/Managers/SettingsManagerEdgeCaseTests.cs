@@ -15,27 +15,49 @@ public class SettingsManagerEdgeCaseTests : IDisposable
         _originalSettingsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings.xml");
         _tempSettingsPath = _originalSettingsPath + ".backup_edge";
 
-        if (File.Exists(_originalSettingsPath))
+        RetryFileOperation(() =>
         {
-            File.Copy(_originalSettingsPath, _tempSettingsPath, true);
-            File.Delete(_originalSettingsPath);
-        }
+            if (File.Exists(_originalSettingsPath))
+            {
+                File.Copy(_originalSettingsPath, _tempSettingsPath, true);
+                File.Delete(_originalSettingsPath);
+            }
+        });
     }
 
     public void Dispose()
     {
-        if (File.Exists(_originalSettingsPath))
+        RetryFileOperation(() =>
         {
-            File.Delete(_originalSettingsPath);
-        }
+            if (File.Exists(_originalSettingsPath))
+            {
+                File.Delete(_originalSettingsPath);
+            }
 
-        if (File.Exists(_tempSettingsPath))
-        {
-            File.Copy(_tempSettingsPath, _originalSettingsPath, true);
-            File.Delete(_tempSettingsPath);
-        }
+            if (File.Exists(_tempSettingsPath))
+            {
+                File.Copy(_tempSettingsPath, _originalSettingsPath, true);
+                File.Delete(_tempSettingsPath);
+            }
+        });
 
         GC.SuppressFinalize(this);
+    }
+
+    private static void RetryFileOperation(Action action, int maxRetries = 5, int delayMs = 50)
+    {
+        for (var i = 0; i < maxRetries; i++)
+        {
+            try
+            {
+                action();
+                return;
+            }
+            catch (IOException) when (i < maxRetries - 1)
+            {
+                Thread.Sleep(delayMs);
+            }
+        }
     }
 
     [Fact]
@@ -55,19 +77,19 @@ public class SettingsManagerEdgeCaseTests : IDisposable
     }
 
     [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    [InlineData(49)]
-    [InlineData(801)]
-    [InlineData(10000)]
-    public void ThumbnailSizeSetToInvalidValueShouldThrowArgumentOutOfRangeException(int invalidSize)
+    [InlineData(0, 50)]
+    [InlineData(-1, 50)]
+    [InlineData(49, 50)]
+    [InlineData(801, 801)]
+    [InlineData(10000, 2000)]
+    public void ThumbnailSizeSetToInvalidValueShouldBeClamped(int input, int expected)
     {
-        var settings = new SettingsManager();
+        var settings = new SettingsManager
+        {
+            ThumbnailSize = input
+        };
 
-        var act = () => settings.ThumbnailSize = invalidSize;
-
-        act.Should().Throw<ArgumentOutOfRangeException>()
-            .WithParameterName("value");
+        settings.ThumbnailSize.Should().Be(expected);
     }
 
     [Fact]

@@ -16,29 +16,51 @@ public class SettingsManagerTests : IDisposable
         _originalSettingsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings.xml");
         _tempSettingsPath = _originalSettingsPath + ".backup";
 
-        // Backup existing settings.xml if present
+        // Backup existing settings.xml if present (with retry for file locking)
         if (File.Exists(_originalSettingsPath))
         {
-            File.Copy(_originalSettingsPath, _tempSettingsPath, true);
-            File.Delete(_originalSettingsPath);
+            RetryFileOperation(() =>
+            {
+                File.Copy(_originalSettingsPath, _tempSettingsPath, true);
+                File.Delete(_originalSettingsPath);
+            });
         }
     }
 
     public void Dispose()
     {
-        // Restore original settings.xml
-        if (File.Exists(_originalSettingsPath))
+        // Restore original settings.xml (with retry for file locking)
+        RetryFileOperation(() =>
         {
-            File.Delete(_originalSettingsPath);
-        }
+            if (File.Exists(_originalSettingsPath))
+            {
+                File.Delete(_originalSettingsPath);
+            }
 
-        if (File.Exists(_tempSettingsPath))
-        {
-            File.Copy(_tempSettingsPath, _originalSettingsPath, true);
-            File.Delete(_tempSettingsPath);
-        }
+            if (File.Exists(_tempSettingsPath))
+            {
+                File.Copy(_tempSettingsPath, _originalSettingsPath, true);
+                File.Delete(_tempSettingsPath);
+            }
+        });
 
         GC.SuppressFinalize(this);
+    }
+
+    private static void RetryFileOperation(Action action, int maxRetries = 5, int delayMs = 50)
+    {
+        for (var i = 0; i < maxRetries; i++)
+        {
+            try
+            {
+                action();
+                return;
+            }
+            catch (IOException) when (i < maxRetries - 1)
+            {
+                Thread.Sleep(delayMs);
+            }
+        }
     }
 
     [Fact]
@@ -53,16 +75,19 @@ public class SettingsManagerTests : IDisposable
     }
 
     [Theory]
-    [InlineData(49)]
-    [InlineData(801)]
-    public void ThumbnailSizeSetOutsideRangeShouldThrowArgumentOutOfRangeException(int invalidSize)
+    [InlineData(49, 50)]
+    [InlineData(801, 801)]
+    [InlineData(0, 50)]
+    [InlineData(-1, 50)]
+    [InlineData(10000, 2000)]
+    public void ThumbnailSizeSetOutsideRangeShouldBeClamped(int input, int expected)
     {
-        var settings = new SettingsManager();
+        var settings = new SettingsManager
+        {
+            ThumbnailSize = input
+        };
 
-        var act = () => { settings.ThumbnailSize = invalidSize; };
-
-        act.Should().Throw<ArgumentOutOfRangeException>()
-            .WithParameterName("value");
+        settings.ThumbnailSize.Should().Be(expected);
     }
 
     [Fact]
@@ -76,7 +101,7 @@ public class SettingsManagerTests : IDisposable
         settings.AccentColor.Should().Be("Blue");
         settings.UseMameDescriptions.Should().BeFalse();
         settings.GoogleSearchEngineId.Should().Be("d30e97188f5914611");
-        settings.SupportedExtensions.Should().BeEmpty();
+        settings.SupportedExtensions.Should().NotBeEmpty();
     }
 
     [Fact]

@@ -44,8 +44,9 @@ public static class SimilarityCalculator
         HashSet<string>? jaccardQueryBigrams = null;
         if (algorithm == AppConstants.Algorithms.Jaccard)
         {
-            jaccardQueryUnigrams = GetNgrams(selectedFileName, 1);
-            jaccardQueryBigrams = GetNgrams(selectedFileName, 2);
+            var lowerSelectedName = selectedFileName.ToLowerInvariant();
+            jaccardQueryUnigrams = GetNgrams(lowerSelectedName, 1);
+            jaccardQueryBigrams = GetNgrams(lowerSelectedName, 2);
         }
 
         var filesToProcess = allImageFiles;
@@ -228,6 +229,9 @@ public static class SimilarityCalculator
 
     internal static double CalculateLevenshteinSimilarity(string a, string b, double similarityThreshold = 0)
     {
+        a = a.ToLowerInvariant();
+        b = b.ToLowerInvariant();
+
         var lengthA = a.Length;
         var lengthB = b.Length;
 
@@ -279,7 +283,7 @@ public static class SimilarityCalculator
 
     internal static double CalculateJaccardIndex(HashSet<string> setA, string b, int ngramSize)
     {
-        var setB = GetNgrams(b, ngramSize);
+        var setB = GetNgrams(b.ToLowerInvariant(), ngramSize);
         return ComputeJaccardFromSets(setA, setB);
     }
 
@@ -318,6 +322,9 @@ public static class SimilarityCalculator
     internal static double CalculateJaroWinklerDistance(string s1, string s2)
     {
         const double scalingFactor = 0.1;
+
+        s1 = s1.ToLowerInvariant();
+        s2 = s2.ToLowerInvariant();
 
         var s1Len = s1.Length;
         var s2Len = s2.Length;
