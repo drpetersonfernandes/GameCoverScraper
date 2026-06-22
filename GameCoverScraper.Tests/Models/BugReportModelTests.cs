@@ -135,7 +135,7 @@ public class BugReportModelTests
     [Fact]
     public void ToStringWithoutContextMessageShouldNotContainErrorMessage()
     {
-        var model = BugReportModel.FromException(new InvalidOperationException("test"), null);
+        var model = BugReportModel.FromException(new InvalidOperationException("test"));
 
         var result = model.ToString();
 
@@ -214,6 +214,7 @@ public class ExceptionDetailsTests
     [Fact]
     public void FromExceptionWithDeeplyNestedInnerExceptionShouldRecursivelyPopulateAllLevels()
     {
+        // ReSharper disable once NotResolvedInText
         var level2 = new ArgumentNullException("parameterName", "null param");
         var level1 = new InvalidOperationException("level1", level2);
         var outer = new InvalidOperationException("outer", level1);

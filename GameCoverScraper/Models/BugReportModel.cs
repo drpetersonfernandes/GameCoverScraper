@@ -51,7 +51,7 @@ public class BugReportModel
         sb.AppendLine();
 
         sb.AppendLine("=== Environment Details ===");
-        sb.AppendLine(CultureInfo.InvariantCulture, $"Date: {Date:dd/MM/yyyy HH:mm:ss}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Date: {Date:yyyy-MM-dd HH:mm:ss}");
         sb.AppendLine(CultureInfo.InvariantCulture, $"Application Name: {ApplicationName}");
         sb.AppendLine(CultureInfo.InvariantCulture, $"Application Version: {ApplicationVersion}");
         sb.AppendLine(CultureInfo.InvariantCulture, $"OS Version: {OsVersion}");

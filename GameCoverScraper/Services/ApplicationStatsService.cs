@@ -7,7 +7,7 @@ namespace GameCoverScraper.Services;
 public static class ApplicationStatsService
 {
     private const string StatsApiUrl = "https://www.purelogiccode.com/ApplicationStats/stats";
-    private const string ApiKey = "hjh7yu6t56tyr540o9u8767676r5674534453235264c75b6t7ggghgg76trf564e";
+    private const string ApiKey = AppConstants.BugReportApiKey;
     private const string ApplicationId = "gamecoverscraper";
 
     public static async Task RecordStartupAsync()
@@ -30,7 +30,7 @@ public static class ApplicationStatsService
             request.Headers.Add("Authorization", $"Bearer {ApiKey}");
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-            using var response = await HttpClientHelper.Client.SendAsync(request, cts.Token).ConfigureAwait(false);
+            using var response = await HttpClientHelper.Client.SendAsync(request, cts.Token);
 
             if (response.IsSuccessStatusCode)
             {

@@ -15,15 +15,15 @@ public class ImageSaveService
     {
         try
         {
-            using var response = await HttpClientHelper.Client.GetAsync(imageUrl).ConfigureAwait(false);
+            using var response = await HttpClientHelper.Client.GetAsync(imageUrl);
             if (!response.IsSuccessStatusCode)
             {
                 AppLogger.Log($"Failed to download image. HTTP Status: {response.StatusCode}");
                 return false;
             }
 
-            await using var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-            return await ConvertStreamToPngAndSaveAsync(stream, outputPath).ConfigureAwait(false);
+            await using var stream = await response.Content.ReadAsStreamAsync();
+            return await ConvertStreamToPngAndSaveAsync(stream, outputPath);
         }
         catch (Exception ex)
         {
@@ -56,7 +56,7 @@ public class ImageSaveService
             using (var image = new MagickImage(inputStream))
             {
                 image.Format = MagickFormat.Png;
-                await image.WriteAsync(tempOutputPath).ConfigureAwait(false);
+                await image.WriteAsync(tempOutputPath);
             }
 
             File.Move(tempOutputPath, outputPath, true);

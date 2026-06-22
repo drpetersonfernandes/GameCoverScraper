@@ -41,7 +41,11 @@ public partial class MainWindow
         var selectedItemSearchName = selectedItem.SearchName;
         _selectedRomFileName = selectedItemRomName;
 
-        Clipboard.SetText(selectedItemRomName);
+        try { Clipboard.SetText(selectedItemRomName); }
+        catch (System.Runtime.InteropServices.COMException)
+        {
+            // Clipboard may be locked by another process
+        }
 
         // Always do local search
         _ = RunLocalSearchAsync(selectedItemSearchName, selectedItemRomName);
@@ -167,7 +171,9 @@ public partial class MainWindow
             }
             finally { _findSimilarSemaphore.Release(); }
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+        }
         catch (Exception ex)
         {
             if (!cancellationToken.IsCancellationRequested)

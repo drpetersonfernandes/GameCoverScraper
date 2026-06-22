@@ -46,7 +46,7 @@ public partial class App
     private static void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton<SettingsManager>();
-        services.AddTransient<MainWindow>();
+        services.AddSingleton<MainWindow>();
     }
 
     private static void FireAndForget(Func<Task> asyncAction)
@@ -114,34 +114,32 @@ public partial class App
             switch (e.Args.Length)
             {
                 case >= 2:
-                {
-                    var imageFolderPath = e.Args[0];
-                    var romFolderPath = e.Args[1];
-
-                    if (Directory.Exists(imageFolderPath) && Directory.Exists(romFolderPath))
                     {
-                        StartupImageFolderPath = imageFolderPath;
-                        StartupRomFolderPath = romFolderPath;
-                    }
+                        var imageFolderPath = e.Args[0];
+                        var romFolderPath = e.Args[1];
 
-                    break;
-                }
+                        if (Directory.Exists(imageFolderPath) && Directory.Exists(romFolderPath))
+                        {
+                            StartupImageFolderPath = imageFolderPath;
+                            StartupRomFolderPath = romFolderPath;
+                        }
+
+                        break;
+                    }
                 case 1:
-                {
-                    if (Directory.Exists(e.Args[0]))
                     {
-                        StartupImageFolderPath = e.Args[0];
-                    }
+                        if (Directory.Exists(e.Args[0]))
+                        {
+                            StartupImageFolderPath = e.Args[0];
+                        }
 
-                    break;
-                }
+                        break;
+                    }
             }
 
             LogWindow = new DebugWindow();
 
             var settings = SettingsManager;
-
-            BugReport.Initialize(settings);
 
             var folderToClean = !string.IsNullOrEmpty(StartupImageFolderPath)
                 ? StartupImageFolderPath
@@ -222,9 +220,15 @@ public partial class App
             // ignored
         }
 
-        try { if (LogWindow != null) { LogWindow.ForceClose();
-            LogWindow.Close();
-            LogWindow = null; } }
+        try
+        {
+            if (LogWindow != null)
+            {
+                LogWindow.ForceClose();
+                LogWindow.Close();
+                LogWindow = null;
+            }
+        }
         catch
         {
             // ignored
@@ -279,7 +283,12 @@ public partial class App
 
     private sealed class NullAudioService : IAudioService
     {
-        public void PlayClickSound() { }
-        public void Dispose() { }
+        public void PlayClickSound()
+        {
+        }
+
+        public void Dispose()
+        {
+        }
     }
 }

@@ -2,10 +2,11 @@ using System.Windows.Input;
 
 namespace GameCoverScraper.Services;
 
-public class DelegateCommand : ICommand
+public class DelegateCommand : ICommand, IDisposable
 {
     private readonly Action<object?> _execute;
     private readonly Func<object?, bool>? _canExecute;
+    private bool _disposed;
 
     public DelegateCommand(Action<object?> execute, Func<object?, bool>? canExecute = null)
     {
@@ -30,4 +31,13 @@ public class DelegateCommand : ICommand
     }
 
     public event EventHandler? CanExecuteChanged;
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+
+        _disposed = true;
+        CommandManager.RequerySuggested -= OnRequerySuggested;
+        GC.SuppressFinalize(this);
+    }
 }

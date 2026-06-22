@@ -9,7 +9,6 @@ namespace GameCoverScraper;
 
 public partial class DebugWindow
 {
-    public event EventHandler? WindowHidden;
     private bool _isForceClosing;
 
     public DebugWindow()
@@ -54,9 +53,6 @@ public partial class DebugWindow
         e.Cancel = true;
         Hide();
         AppLogger.Log("Log window hidden.");
-
-        // Notify that the window was hidden
-        WindowHidden?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnLogWindowClosed(object? sender, EventArgs e)
@@ -76,18 +72,18 @@ public partial class DebugWindow
         {
             // When a new log is added to the source collection...
             case NotifyCollectionChangedAction.Add when e.NewItems is not null:
-            {
-                var newText = new StringBuilder();
-                foreach (LogEntry item in e.NewItems)
                 {
-                    newText.AppendLine(item.Message);
-                }
+                    var newText = new StringBuilder();
+                    foreach (LogEntry item in e.NewItems)
+                    {
+                        newText.AppendLine(item.Message);
+                    }
 
-                // ...append it to our TextBox.
-                LogTextBox.AppendText(newText.ToString());
-                LogTextBox.ScrollToEnd();
-                break;
-            }
+                    // ...append it to our TextBox.
+                    LogTextBox.AppendText(newText.ToString());
+                    LogTextBox.ScrollToEnd();
+                    break;
+                }
             // When the source collection is cleared...
             case NotifyCollectionChangedAction.Reset:
                 // ...clear our TextBox.

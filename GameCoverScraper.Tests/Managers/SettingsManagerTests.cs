@@ -93,11 +93,26 @@ public class SettingsManagerTests : IDisposable
     [Fact]
     public void DefaultValuesShouldBeCorrect()
     {
+        // Ensure no settings files exist so we get true defaults
+        var userDataPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "GameCoverScraper", "settings.xml");
+
+        if (File.Exists(_originalSettingsPath))
+        {
+            File.Delete(_originalSettingsPath);
+        }
+
+        if (File.Exists(userDataPath))
+        {
+            File.Delete(userDataPath);
+        }
+
         var settings = new SettingsManager();
 
         settings.ThumbnailSize.Should().Be(300);
         settings.SearchEngine.Should().Be("BingWeb");
-        settings.BaseTheme.Should().Be("Light");
+        settings.BaseTheme.Should().Be("Dark");
         settings.AccentColor.Should().Be("Blue");
         settings.UseMameDescriptions.Should().BeFalse();
         settings.GoogleSearchEngineId.Should().Be("d30e97188f5914611");
@@ -145,6 +160,10 @@ public class SettingsManagerTests : IDisposable
 
         settings.ThumbnailSize.Should().Be(300);
         settings.SupportedExtensions.Should().NotBeEmpty();
-        File.Exists(_originalSettingsPath).Should().BeTrue();
+        // Settings should be saved to either the app directory or the user data directory
+        var userDataPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "GameCoverScraper", "settings.xml");
+        (File.Exists(_originalSettingsPath) || File.Exists(userDataPath)).Should().BeTrue();
     }
 }

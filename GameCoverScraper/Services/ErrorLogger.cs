@@ -11,12 +11,11 @@ namespace GameCoverScraper.Services;
 
 public static class ErrorLogger
 {
-    internal static HttpClient HttpClient = new();
     internal static bool IsDisposed;
     internal static readonly object DisposeLock = new();
 
-    private const string ApiKey = "hjh7yu6t56tyr540o9u8767676r5674534453235264c75b6t7ggghgg76trf564e";
-    private const string BugReportApiUrl = "https://www.purelogiccode.com/bugreport/api/send-bug-report";
+    private const string ApiKey = AppConstants.BugReportApiKey;
+    private const string BugReportApiUrl = AppConstants.BugReportApiUrl;
 
     internal static string ApiLogFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ApiLogError.txt");
     internal static string UserLogFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "UserLogError.txt");
@@ -37,17 +36,13 @@ public static class ErrorLogger
     {
         lock (DisposeLock)
         {
-            if (!IsDisposed)
-            {
-                HttpClient.Dispose();
-                IsDisposed = true;
-            }
+            IsDisposed = true;
         }
     }
 
     public static async Task LogAsync(Exception? ex, string? contextMessage = null, int apiTimeoutSeconds = DefaultApiTimeoutSeconds)
     {
-        if (IsDisposed)
+        if (Volatile.Read(ref IsDisposed))
         {
             return;
         }
@@ -57,7 +52,6 @@ public static class ErrorLogger
         var bugReport = BugReportModel.FromException(ex, contextMessage);
         var currentErrorMessage = bugReport.ToString();
 
-        string contentToSend;
         var lockAcquired = false;
         try
         {
@@ -66,12 +60,10 @@ public static class ErrorLogger
 
             await File.AppendAllTextAsync(UserLogFilePath, currentErrorMessage);
             await File.AppendAllTextAsync(ApiLogFilePath, currentErrorMessage);
-
-            contentToSend = await File.ReadAllTextAsync(ApiLogFilePath);
         }
         catch (Exception loggingEx)
         {
-            _ = WriteInternalLogAsync("Failed to write/read log files.", loggingEx);
+            _ = WriteInternalLogAsync("Failed to write log files.", loggingEx);
             return;
         }
         finally
@@ -82,36 +74,33 @@ public static class ErrorLogger
             }
         }
 
-        if (!string.IsNullOrEmpty(contentToSend))
+        var sendSuccess = false;
+        try
         {
-            var sendSuccess = false;
+            sendSuccess = await SendLogToApiAsync(bugReport, apiTimeoutSeconds);
+        }
+        catch (Exception loggingEx)
+        {
+            _ = WriteInternalLogAsync("Failed to send log to API.", loggingEx);
+        }
+
+        if (sendSuccess)
+        {
+            await LogFileLock.WaitAsync();
             try
             {
-                sendSuccess = await SendLogToApiAsync(bugReport, apiTimeoutSeconds);
+                if (File.Exists(ApiLogFilePath))
+                {
+                    await File.WriteAllTextAsync(ApiLogFilePath, string.Empty);
+                }
             }
             catch (Exception loggingEx)
             {
-                _ = WriteInternalLogAsync("Failed to send log to API.", loggingEx);
+                _ = WriteInternalLogAsync("Failed to clear API log file.", loggingEx);
             }
-
-            if (sendSuccess)
+            finally
             {
-                await LogFileLock.WaitAsync();
-                try
-                {
-                    if (File.Exists(ApiLogFilePath))
-                    {
-                        await File.WriteAllTextAsync(ApiLogFilePath, string.Empty);
-                    }
-                }
-                catch (Exception loggingEx)
-                {
-                    _ = WriteInternalLogAsync("Failed to clear API log file.", loggingEx);
-                }
-                finally
-                {
-                    LogFileLock.Release();
-                }
+                LogFileLock.Release();
             }
         }
     }
@@ -135,7 +124,7 @@ public static class ErrorLogger
 
     private static async Task<bool> SendLogToApiAsync(BugReportModel bugReport, int apiTimeoutSeconds)
     {
-        if (IsDisposed)
+        if (Volatile.Read(ref IsDisposed))
         {
             return false;
         }
@@ -205,7 +194,7 @@ public static class ErrorLogger
             request.Headers.Add("X-API-KEY", ApiKey);
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(apiTimeoutSeconds));
-            using var response = await HttpClient.SendAsync(request, cts.Token);
+            using var response = await HttpClientHelper.Client.SendAsync(request, cts.Token);
 
             if (response.IsSuccessStatusCode)
             {

@@ -10,27 +10,6 @@ namespace GameCoverScraper.Tests.ApiProvider;
 public class GoogleTests
 {
     [Fact]
-    public void LoadApiKeyFromSettingsWithValidKeyShouldNotThrow()
-    {
-        var settings = new SettingsManager { GoogleKey = "valid-api-key" };
-
-        var act = () => Google.LoadApiKeyFromSettings(settings);
-
-        act.Should().NotThrow();
-    }
-
-    [Fact]
-    public void LoadApiKeyFromSettingsWithEmptyKeyShouldThrowInvalidOperationException()
-    {
-        var settings = new SettingsManager { GoogleKey = string.Empty };
-
-        var act = () => Google.LoadApiKeyFromSettings(settings);
-
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*API Key is not set*");
-    }
-
-    [Fact]
     public void BuildRequestUrlWithValidInputsShouldReturnCorrectUrl()
     {
         var settings = new SettingsManager
@@ -239,7 +218,8 @@ public class GoogleTests
         result.Items.Should().HaveCount(1);
         result.Items![0].Link.Should().Be("https://example.com/img.png");
         result.Items[0].Title.Should().Be("Test Image");
-        result.Items[0].Image.Width.Should().Be(100);
+        result.Items[0].Image.Should().NotBeNull();
+        result.Items[0].Image!.Width.Should().Be(100);
     }
 
     [Fact]

@@ -1,13 +1,17 @@
+[![GitHub release](https://img.shields.io/github/v/release/drpetersonfernandes/GameCoverScraper)](https://github.com/drpetersonfernandes/GameCoverScraper/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%20x64%20%7C%20ARM64-blue)](https://github.com/drpetersonfernandes/GameCoverScraper/releases)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE.txt)
+
 # 🎮 GameCoverScraper
 
 A powerful Windows desktop application designed to help you automatically find and download missing cover art for your retro gaming ROM collection.
 It supports **Bing Web Image Search**, **Google Web Image Search**, and **Google Custom Search API** to fetch high-quality game cover images.
 
 ![Main Window](screenshot.png)
-*Screenshot: Main Window*
+*Screenshot: Light Theme*
 
 ![Main Window](screenshot2.png)
-*Screenshot: Main Window*
+*Screenshot: Dark Theme*
 
 ## ✨ Features
 
@@ -24,18 +28,13 @@ It supports **Bing Web Image Search**, **Google Web Image Search**, and **Google
 -   **🔧 Flexible Configuration**: Support for custom file extensions and search queries.
 -   **🔄 Automatic Image Conversion**: Automatically converts downloaded images (JPG, BMP, GIF, TIFF, WebP, AVIF) to PNG format using Magick.NET (ImageMagick). Also, automatically converts newly saved images in the image folder to PNG.
 -   **📝 Detailed Logging**: Built-in log viewer for troubleshooting and `app.log`/`error.log` files.
--   **🎵 Sound Feedback**: Optional audio feedback for user actions.
+-   **🎵 Sound Feedback**: Optional audio feedback for user actions using NAudio.
 -   **🚀 Command-line Arguments**: Start the application with pre-set ROM and Image folders for quick scanning.
 -   **📋 Auto-Copy to Clipboard**: Automatically copies the selected ROM filename to the clipboard when navigating the missing covers list.
 -   **🔄 Automatic Updates**: Checks for new releases on startup via GitHub and notifies you when an update is available, with release notes and direct download links.
+-   **🔔 System Tray Integration**: Minimize to system tray with balloon notifications and quick restore functionality.
 
 ## 📦 Supported File Types
-
-By default, the application supports:
--   **Archive formats**: ZIP, RAR, 7Z
--   **Nintendo**: NES, SNES, Game Boy (GB, GBC, GBA)
--   **Sega**: Genesis/Mega Drive (MD, SMD, GEN), 32X, Game Gear (GG), Master System (MS, GG, SGG, SC)
--   **Other**: ROM, BIN, CDI, CHD, ISO, 3DS, RVZ, NSP, XCI, WUA, WAD, CSO, NDS, LNK, BAT, EXE, ARC, D64, D71, D81, G64, LNX, NBZ, NIB, PRG, SDA, SFX, T64, TAP
 
 You can add or remove supported extensions through the `Settings > Edit Supported Extensions...` menu.
 
@@ -132,28 +131,11 @@ You can launch `GameCoverScraper.exe` with command-line arguments to pre-fill th
 -   If only one argument is provided, it will be treated as the Image Folder.
 -   If both are provided, the application will automatically trigger a scan for missing images on startup.
 
-## 🔧 Configuration
-
-All settings are stored in `settings.xml` in the application folder. This file is managed by the application, but you can inspect it:
-
-```xml
-<Settings>
-    <ThumbnailSize>300</ThumbnailSize>
-    <SearchEngine>BingWeb</SearchEngine>
-    <BaseTheme>Light</BaseTheme>
-    <AccentColor>Blue</AccentColor>
-    <UseMameDescriptions>true</UseMameDescriptions>
-    <BugReportApiKey>your-bug-report-key-here</BugReportApiKey>
-    <BugReportApiUrl>https://www.purelogiccode.com/bugreport/api/send-bug-report</BugReportApiUrl>
-    <SupportedExtensions>
-        <Extension>zip</Extension>
-        <Extension>nes</Extension>
-        <!-- ... more extensions ... -->
-    </SupportedExtensions>
-    <GoogleKey>your-google-api-key-here</GoogleKey>
-    <GoogleSearchEngineId>your-search-engine-id-here</GoogleSearchEngineId>
-</Settings>
-```
+#### System Tray
+The application can be minimized to the system tray for background operation:
+-   Minimize the window to send it to the system tray.
+-   Right-click the tray icon to restore or exit the application.
+-   Balloon notifications inform you when the app is minimized.
 
 ## 🐛 Troubleshooting
 
@@ -200,6 +182,7 @@ Access detailed logs via:
 -   **MAME** team for the comprehensive arcade game database.
 -   **Microsoft.Web.WebView2** for embedding web content.
 -   **NAudio** for audio playback.
+-   **xUnit**, **FluentAssertions**, and **Moq** for the testing framework.
 
 ## 📄 License
 

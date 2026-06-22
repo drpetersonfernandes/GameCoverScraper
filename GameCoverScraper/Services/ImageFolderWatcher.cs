@@ -59,11 +59,20 @@ public sealed class ImageFolderWatcher : IDisposable
     {
         try
         {
-            await ProcessFileAsync(e.FullPath);
+            if (_disposed) return;
+
+            try
+            {
+                await ProcessFileAsync(e.FullPath);
+            }
+            catch (Exception ex)
+            {
+                _ = ErrorLogger.LogAsync(ex, $"ImageFolderWatcher: unhandled error in OnFileCreated for '{e.FullPath}'");
+            }
         }
         catch (Exception ex)
         {
-            _ = ErrorLogger.LogAsync(ex, $"ImageFolderWatcher: unhandled error in OnFileCreated for '{e.FullPath}'");
+            _ = ErrorLogger.LogAsync(ex, "Error in method OnFileCreated");
         }
     }
 
@@ -71,11 +80,20 @@ public sealed class ImageFolderWatcher : IDisposable
     {
         try
         {
-            await ProcessFileAsync(e.FullPath);
+            if (_disposed) return;
+
+            try
+            {
+                await ProcessFileAsync(e.FullPath);
+            }
+            catch (Exception ex)
+            {
+                _ = ErrorLogger.LogAsync(ex, $"ImageFolderWatcher: unhandled error in OnFileRenamed for '{e.FullPath}'");
+            }
         }
         catch (Exception ex)
         {
-            _ = ErrorLogger.LogAsync(ex, $"ImageFolderWatcher: unhandled error in OnFileRenamed for '{e.FullPath}'");
+            _ = ErrorLogger.LogAsync(ex, "Error in method OnFileRenamed");
         }
     }
 

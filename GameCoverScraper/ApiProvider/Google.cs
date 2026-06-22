@@ -21,20 +21,6 @@ public class Google
         WriteIndented = true
     };
 
-    public static void LoadApiKeyFromSettings(SettingsManager settingsManager)
-    {
-        AppLogger.Log("Loading Google API key from settings...");
-
-        if (!string.IsNullOrEmpty(settingsManager.GoogleKey))
-        {
-            AppLogger.Log("Google API key loaded from settings.");
-            return;
-        }
-
-        AppLogger.Log("Google API Key is not set in settings.");
-        throw new InvalidOperationException("Google API Key is not set. Please configure it in API Settings.");
-    }
-
     internal static string BuildRequestUrl(string searchQuery, SettingsManager settingsManager)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(searchQuery);
@@ -67,10 +53,12 @@ public class Google
             {
                 ImagePath = item.Link,
                 ImageName = FormatImageName(item.Title),
-                ImageFileSize = Math.Round(item.Image.ByteSize / 1024.0, 2) + " KB",
+                ImageFileSize = item.Image is { ByteSize: > 0 }
+                    ? Math.Round(item.Image.ByteSize / 1024.0, 2) + " KB"
+                    : "Unknown",
                 ImageEncodingFormat = item.Mime,
-                ImageWidth = item.Image.Width,
-                ImageHeight = item.Image.Height,
+                ImageWidth = item.Image?.Width ?? 0,
+                ImageHeight = item.Image?.Height ?? 0,
                 ThumbnailWidth = 0,
                 ThumbnailHeight = 0
             }).ToList();
@@ -79,7 +67,7 @@ public class Google
         return new List<ImageData>();
     }
 
-    public async Task<List<ImageData>> FetchImagesFromGoogleAsync(string searchQuery, SettingsManager settingsManager, CancellationToken cancellationToken = default)
+    public static async Task<List<ImageData>> FetchImagesFromGoogleAsync(string searchQuery, SettingsManager settingsManager, CancellationToken cancellationToken = default)
     {
         var requestUrl = BuildRequestUrl(searchQuery, settingsManager);
 
@@ -95,33 +83,33 @@ public class Google
             switch (response.StatusCode)
             {
                 case HttpStatusCode.TooManyRequests:
-                {
-                    AppLogger.Log($"{logMessagePrefix} API rate limit exceeded (429).");
-                    var rateLimitException = new HttpRequestException("Response status code does not indicate success: 429 (Too Many Requests).", null, HttpStatusCode.TooManyRequests);
-                    _ = BugReport.LogErrorAsync(rateLimitException, $"HTTP error when calling {ProviderName} API: Rate limit exceeded.");
-                    throw new InvalidOperationException($"{ProviderName} API rate limit has been exceeded. Please wait a moment before trying again.", rateLimitException);
-                }
+                    {
+                        AppLogger.Log($"{logMessagePrefix} API rate limit exceeded (429).");
+                        var rateLimitException = new HttpRequestException("Response status code does not indicate success: 429 (Too Many Requests).", null, HttpStatusCode.TooManyRequests);
+                        _ = BugReport.LogErrorAsync(rateLimitException, $"HTTP error when calling {ProviderName} API: Rate limit exceeded.");
+                        throw new InvalidOperationException($"{ProviderName} API rate limit has been exceeded. Please wait a moment before trying again.", rateLimitException);
+                    }
                 case HttpStatusCode.Forbidden:
-                {
-                    AppLogger.Log($"{logMessagePrefix} Access Forbidden (403). Check API Key and API Permissions.");
-                    var forbiddenEx = new HttpRequestException("403 (Forbidden)", null, HttpStatusCode.Forbidden);
-                    _ = BugReport.LogErrorAsync(forbiddenEx, $"{ProviderName} API: Access Forbidden.");
+                    {
+                        AppLogger.Log($"{logMessagePrefix} Access Forbidden (403). Check API Key and API Permissions.");
+                        var forbiddenEx = new HttpRequestException("403 (Forbidden)", null, HttpStatusCode.Forbidden);
+                        _ = BugReport.LogErrorAsync(forbiddenEx, $"{ProviderName} API: Access Forbidden.");
 
-                    throw new InvalidOperationException(
-                        $"{ProviderName} API Access Forbidden (403).\n\n" +
-                        "This usually means:\n" +
-                        "1. Your API Key is incorrect.\n" +
-                        "2. Your daily free limit has been reached.", forbiddenEx);
-                }
+                        throw new InvalidOperationException(
+                            $"{ProviderName} API Access Forbidden (403).\n\n" +
+                            "This usually means:\n" +
+                            "1. Your API Key is incorrect.\n" +
+                            "2. Your daily free limit has been reached.", forbiddenEx);
+                    }
                 case HttpStatusCode.BadRequest:
-                {
-                    AppLogger.Log($"{logMessagePrefix} Bad Request (400).");
-                    var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
-                    var badRequestEx = new HttpRequestException("Response status code does not indicate success: 400 (Bad Request).", null, HttpStatusCode.BadRequest);
-                    _ = BugReport.LogErrorAsync(badRequestEx, $"HTTP error when calling {ProviderName} API: Bad Request (400). Response body: {errorBody}");
-                    throw new InvalidOperationException(
-                        $"{ProviderName} API error: Invalid request. Please check your API key and Search Engine ID configuration.", badRequestEx);
-                }
+                    {
+                        AppLogger.Log($"{logMessagePrefix} Bad Request (400).");
+                        var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                        var badRequestEx = new HttpRequestException("Response status code does not indicate success: 400 (Bad Request).", null, HttpStatusCode.BadRequest);
+                        _ = BugReport.LogErrorAsync(badRequestEx, $"HTTP error when calling {ProviderName} API: Bad Request (400). Response body: {errorBody}");
+                        throw new InvalidOperationException(
+                            $"{ProviderName} API error: Invalid request. Please check your API key and Search Engine ID configuration.", badRequestEx);
+                    }
             }
 
             var json = await response.Content.ReadAsStringAsync(cancellationToken);

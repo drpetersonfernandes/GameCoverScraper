@@ -108,7 +108,7 @@ public partial class MainWindow
             }
             catch (InvalidOperationException ex) when (ex.Message.Contains("API Key is not set"))
             {
-                await Dispatcher.InvokeAsync(() =>
+                await Dispatcher.InvokeAsync(static () =>
                 {
                     MessageBox.Show("Please configure your API keys in Settings > API Settings.", "Missing API Key", MessageBoxButton.OK, MessageBoxImage.Warning);
                 });
@@ -146,7 +146,9 @@ public partial class MainWindow
                 StatusImageCount.Text = PanelImages.Count.ToString(CultureInfo.InvariantCulture);
             });
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+        }
         catch (Exception ex)
         {
             _ = ErrorLogger.LogAsync(ex, "Error in HandleApiSearchAsync");
@@ -163,8 +165,7 @@ public partial class MainWindow
         if (string.IsNullOrWhiteSpace(Settings.GoogleKey))
             throw new InvalidOperationException("API Key is not set.");
 
-        var google = new Google();
-        return google.FetchImagesFromGoogleAsync(searchQuery, Settings, token);
+        return Google.FetchImagesFromGoogleAsync(searchQuery, Settings, token);
     }
 
     private async void SaveApiImage_ClickAsync(object sender, RoutedEventArgs e)

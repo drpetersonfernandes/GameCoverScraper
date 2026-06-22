@@ -26,7 +26,7 @@ public static class UpdateCheckService
             request.Headers.Add("User-Agent", "GameCoverScraper");
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-            using var response = await client.SendAsync(request, cts.Token).ConfigureAwait(false);
+            using var response = await client.SendAsync(request, cts.Token);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -34,7 +34,7 @@ public static class UpdateCheckService
                 return new UpdateInfo { IsUpdateAvailable = false };
             }
 
-            var json = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
+            var json = await response.Content.ReadAsStringAsync(cts.Token);
 
             return ParseReleaseResponse(json, currentVersion);
         }

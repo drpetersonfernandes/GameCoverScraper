@@ -6,7 +6,6 @@ namespace GameCoverScraper.Services;
 public class LocalAudioService : IAudioService
 {
     private MediaPlayer? _mediaPlayer;
-    private Uri? _soundUri;
     private bool _isSoundAvailable;
 
     public LocalAudioService()
@@ -48,8 +47,8 @@ public class LocalAudioService : IAudioService
     private void InitializeMediaPlayer(string soundPath)
     {
         _mediaPlayer = new MediaPlayer();
-        _soundUri = new Uri(soundPath, UriKind.Absolute);
-        _mediaPlayer.Open(_soundUri);
+        var soundUri = new Uri(soundPath, UriKind.Absolute);
+        _mediaPlayer.Open(soundUri);
         _mediaPlayer.MediaFailed += OnMediaFailed;
         _isSoundAvailable = true;
     }

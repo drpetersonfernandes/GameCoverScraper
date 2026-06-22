@@ -57,7 +57,7 @@ public class NgramIndexTests
 
         var result = index.GetCandidates("mario");
 
-        result.Should().Contain(f => f.Contains("mario"));
+        result.Should().Contain(static f => f.Contains("mario"));
     }
 
     [Fact]
@@ -89,7 +89,7 @@ public class NgramIndexTests
 
         var result = index.GetCandidates("mario");
 
-        result.Should().Contain(f => f.Contains("MARIO"));
+        result.Should().Contain(static f => f.Contains("MARIO"));
     }
 
     [Fact]

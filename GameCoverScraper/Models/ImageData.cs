@@ -88,7 +88,9 @@ public class ImageData : INotifyPropertyChanged
         }
     }
 
-    public ImageData() { }
+    public ImageData()
+    {
+    }
 
     public ImageData(string? imagePath, string? imageName, double similarityScore)
     {

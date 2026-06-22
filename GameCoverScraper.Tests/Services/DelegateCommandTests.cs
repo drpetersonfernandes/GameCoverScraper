@@ -9,7 +9,7 @@ public class DelegateCommandTests
     [Fact]
     public void ConstructorWithNullExecuteShouldThrowArgumentNullException()
     {
-        var act = () => new DelegateCommand(null!);
+        var act = static () => new DelegateCommand(null!);
 
         act.Should().Throw<ArgumentNullException>()
             .WithParameterName("execute");
@@ -18,7 +18,7 @@ public class DelegateCommandTests
     [Fact]
     public void CanExecuteWithoutCanExecuteFuncShouldReturnTrue()
     {
-        var command = new DelegateCommand(_ => { });
+        var command = new DelegateCommand(static _ => { });
 
         var result = command.CanExecute(null);
 
@@ -28,7 +28,7 @@ public class DelegateCommandTests
     [Fact]
     public void CanExecuteWithCanExecuteFuncShouldReturnFuncResult()
     {
-        var command = new DelegateCommand(_ => { }, _ => false);
+        var command = new DelegateCommand(static _ => { }, static _ => false);
 
         var result = command.CanExecute(null);
 
@@ -38,7 +38,7 @@ public class DelegateCommandTests
     [Fact]
     public void CanExecuteWithCanExecuteFuncReturningTrueShouldReturnTrue()
     {
-        var command = new DelegateCommand(_ => { }, _ => true);
+        var command = new DelegateCommand(static _ => { }, static _ => true);
 
         var result = command.CanExecute(null);
 
@@ -82,7 +82,7 @@ public class DelegateCommandTests
     public void CanExecuteShouldPassParameter()
     {
         object? receivedParam = null;
-        var command = new DelegateCommand(_ => { }, param =>
+        var command = new DelegateCommand(static _ => { }, param =>
         {
             receivedParam = param;
             return true;
@@ -96,7 +96,7 @@ public class DelegateCommandTests
     [Fact]
     public void CanExecuteChangedShouldBeSubscribable()
     {
-        var command = new DelegateCommand(_ => { });
+        var command = new DelegateCommand(static _ => { });
         var eventRaised = false;
         EventHandler handler = (_, _) => { eventRaised = true; };
         command.CanExecuteChanged += handler;
@@ -110,7 +110,7 @@ public class DelegateCommandTests
     [Fact]
     public void CanExecuteWithFuncReturningFalseShouldReturnFalse()
     {
-        var command = new DelegateCommand(_ => { }, _ => false);
+        var command = new DelegateCommand(static _ => { }, static _ => false);
 
         command.CanExecute("anything").Should().BeFalse();
         command.CanExecute(null).Should().BeFalse();

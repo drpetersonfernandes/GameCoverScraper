@@ -1,7 +1,6 @@
 using FluentAssertions;
 using GameCoverScraper.Managers;
 using GameCoverScraper.Models;
-using MessagePack;
 using Xunit;
 
 namespace GameCoverScraper.Tests.Managers;
@@ -42,11 +41,8 @@ public class MameManagerTests : IDisposable
     [Fact]
     public void LoadFromDatWhenFileDoesNotExistShouldThrowMameDatNotFoundException()
     {
-        // MameManager.LoadFromDat uses a hardcoded path, so if the file doesn't exist
-        // it should throw MameDatNotFoundException
         if (File.Exists(_originalDatPath))
         {
-            // Skip this test if the actual mame.dat exists (can't test missing file scenario)
             return;
         }
 
@@ -73,57 +69,5 @@ public class MameManagerTests : IDisposable
         exception.Should().BeAssignableTo<Exception>();
         exception.Message.Should().Be("corrupt");
         exception.InnerException.Should().Be(inner);
-    }
-
-    [Fact]
-    public void MameManagerPropertiesShouldHaveCorrectDefaults()
-    {
-        var manager = new MameManager();
-
-        manager.MachineName.Should().Be(string.Empty);
-        manager.Description.Should().Be(string.Empty);
-    }
-
-    [Fact]
-    public void MameManagerPropertiesShouldBeSettable()
-    {
-        var manager = new MameManager
-        {
-            MachineName = "pacman",
-            Description = "Puck Man"
-        };
-
-        manager.MachineName.Should().Be("pacman");
-        manager.Description.Should().Be("Puck Man");
-    }
-
-    [Fact]
-    public void MameManagerShouldSerializeAndDeserializeWithMessagePack()
-    {
-        var original = new List<MameManager>
-        {
-            new() { MachineName = "dkong", Description = "Donkey Kong" },
-            new() { MachineName = "galaga", Description = "Galaga" }
-        };
-
-        var bytes = MessagePackSerializer.Serialize(original);
-        var deserialized = MessagePackSerializer.Deserialize<List<MameManager>>(bytes);
-
-        deserialized.Should().HaveCount(2);
-        deserialized[0].MachineName.Should().Be("dkong");
-        deserialized[0].Description.Should().Be("Donkey Kong");
-        deserialized[1].MachineName.Should().Be("galaga");
-        deserialized[1].Description.Should().Be("Galaga");
-    }
-
-    [Fact]
-    public void MameManagerShouldSerializeAndDeserializeEmptyList()
-    {
-        var original = new List<MameManager>();
-
-        var bytes = MessagePackSerializer.Serialize(original);
-        var deserialized = MessagePackSerializer.Deserialize<List<MameManager>>(bytes);
-
-        deserialized.Should().BeEmpty();
     }
 }

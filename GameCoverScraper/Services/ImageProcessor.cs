@@ -66,7 +66,7 @@ public static class ImageProcessor
             try
             {
                 var testFile = Path.Combine(directory, $"{Guid.NewGuid()}.tmp");
-                await File.WriteAllTextAsync(testFile, string.Empty, cancellationToken).ConfigureAwait(false);
+                await File.WriteAllTextAsync(testFile, string.Empty, cancellationToken);
                 File.Delete(testFile);
                 break;
             }
@@ -128,7 +128,7 @@ public static class ImageProcessor
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        return await ProcessImageAsync(sourcePath, targetPath, cancellationToken).ConfigureAwait(false);
+        return await ProcessImageAsync(sourcePath, targetPath, cancellationToken);
     }
 
     private static async Task<ImageSaveResult> ProcessImageAsync(string sourcePath, string targetPath, CancellationToken cancellationToken)
@@ -147,7 +147,7 @@ public static class ImageProcessor
             magickImage.Quality = 90;
             magickImage.Format = MagickFormat.Png;
 
-            return await WriteImageWithRetryAsync(magickImage, targetPath, sourcePath, cancellationToken).ConfigureAwait(false);
+            return await WriteImageWithRetryAsync(magickImage, targetPath, sourcePath, cancellationToken);
         }
         catch (MagickException ex)
         {
@@ -187,7 +187,7 @@ public static class ImageProcessor
                         }
                     }
 
-                    await magickImage.WriteAsync(tempPath, cancellationToken).ConfigureAwait(false);
+                    await magickImage.WriteAsync(tempPath, cancellationToken);
 
                     if (!File.Exists(tempPath))
                     {
@@ -213,25 +213,25 @@ public static class ImageProcessor
                 {
                     lastException = ex;
                     var delay = baseDelayMs * Math.Pow(2, attempt - 1);
-                    await Task.Delay((int)delay, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay((int)delay, cancellationToken);
                 }
                 catch (UnauthorizedAccessException ex) when (attempt < maxRetries)
                 {
                     lastException = ex;
                     var delay = baseDelayMs * Math.Pow(2, attempt - 1);
-                    await Task.Delay((int)delay, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay((int)delay, cancellationToken);
                 }
                 catch (MagickException ex) when (attempt < maxRetries && ex.Message.Contains("WriteBlob"))
                 {
                     lastException = ex;
                     var delay = baseDelayMs * Math.Pow(2, attempt - 1);
-                    await Task.Delay((int)delay, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay((int)delay, cancellationToken);
                 }
                 catch (Exception ex) when (attempt < maxRetries)
                 {
                     lastException = ex;
                     var delay = baseDelayMs * Math.Pow(2, attempt - 1);
-                    await Task.Delay((int)delay, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay((int)delay, cancellationToken);
                 }
             }
         }

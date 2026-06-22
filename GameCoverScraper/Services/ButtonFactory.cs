@@ -119,7 +119,7 @@ public static class ButtonFactory
         return contextMenu;
     }
 
-    private static ICommand CopyImageFilenameCommand { get; } = new DelegateCommand(param =>
+    private static ICommand CopyImageFilenameCommand { get; } = new DelegateCommand(static param =>
     {
         if (param is not string imagePath) return;
 

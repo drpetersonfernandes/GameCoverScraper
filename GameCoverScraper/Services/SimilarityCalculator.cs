@@ -25,7 +25,7 @@ public static class SimilarityCalculator
     {
         var result = new SimilarityCalculationResult();
 
-        if (string.IsNullOrEmpty(imageFolderPath)) return result;
+        if (string.IsNullOrEmpty(imageFolderPath) || !Directory.Exists(imageFolderPath)) return result;
 
         if (maxImagesToLoad <= 0)
         {
@@ -119,7 +119,7 @@ public static class SimilarityCalculator
                 }
 
                 return ValueTask.CompletedTask;
-            }).ConfigureAwait(false);
+            });
         }
         catch (OperationCanceledException)
         {
@@ -158,7 +158,7 @@ public static class SimilarityCalculator
                         candidate.FilePath,
                         ct,
                         maxRetries,
-                        retryDelayMilliseconds).ConfigureAwait(false);
+                        retryDelayMilliseconds);
 
                     if (imageSource == null)
                     {
@@ -181,7 +181,7 @@ public static class SimilarityCalculator
                 {
                     processingErrors.Add($"Could not load image '{Path.GetFileName(candidate.FilePath)}' for display: {ex.Message}");
                 }
-            }).ConfigureAwait(false);
+            });
         }
         catch (OperationCanceledException)
         {
@@ -240,6 +240,8 @@ public static class SimilarityCalculator
 
         var maxLength = Math.Max(lengthA, lengthB);
 
+        // similarityThreshold is 0-100 (percentage). Convert to max allowed edit distance.
+        // e.g., threshold=70 means allow up to 30% of the string length as edits.
         var maxAllowedDistance = similarityThreshold > 0
             ? (int)((1.0 - similarityThreshold / 100.0) * maxLength)
             : int.MaxValue;

@@ -120,7 +120,7 @@ public class SettingsManagerEdgeCaseTests : IDisposable
         // Should revert to defaults
         settings.ThumbnailSize.Should().Be(300);
         settings.SearchEngine.Should().Be("BingWeb");
-        settings.BaseTheme.Should().Be("Light");
+        settings.BaseTheme.Should().Be("Dark");
         settings.AccentColor.Should().Be("Blue");
         settings.UseMameDescriptions.Should().BeFalse();
         settings.SupportedExtensions.Should().NotBeEmpty();
@@ -155,7 +155,7 @@ public class SettingsManagerEdgeCaseTests : IDisposable
 
         settings.ThumbnailSize.Should().Be(500);
         settings.SearchEngine.Should().Be("Google");
-        settings.BaseTheme.Should().Be("Light");
+        settings.BaseTheme.Should().Be("Dark");
         settings.AccentColor.Should().Be("Blue");
     }
 

@@ -22,8 +22,11 @@ public class SettingsManager : INotifyPropertyChanged
     private static readonly string SettingsFilePath =
         Path.Combine(AppDomain.CurrentDomain.BaseDirectory, AppConstants.SettingsFileName);
 
+    private static readonly string UserDataSettingsFilePath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "GameCoverScraper", AppConstants.SettingsFileName);
+
     private readonly object _saveLock = new();
-    private static readonly object FileLock = new();
 
     // --- Similarity settings (from FindRomCover) ---
 
@@ -176,7 +179,7 @@ public class SettingsManager : INotifyPropertyChanged
 
     private static readonly HashSet<string> ValidBaseThemes = new(StringComparer.OrdinalIgnoreCase) { "Light", "Dark" };
 
-    private string _baseTheme = "Light";
+    private string _baseTheme = "Dark";
 
     public string BaseTheme
     {
@@ -185,7 +188,7 @@ public class SettingsManager : INotifyPropertyChanged
         {
             if (string.IsNullOrWhiteSpace(value) || !ValidBaseThemes.Contains(value))
             {
-                value = "Light";
+                value = "Dark";
             }
 
             if (_baseTheme == value) return;
@@ -237,13 +240,6 @@ public class SettingsManager : INotifyPropertyChanged
         }
     }
 
-    // Alias for FindRomCover compatibility
-    public bool UseMameDescription
-    {
-        get => UseMameDescriptions;
-        set => UseMameDescriptions = value;
-    }
-
     // --- Extensions ---
 
     private string[] _supportedExtensions = Array.Empty<string>();
@@ -276,7 +272,7 @@ public class SettingsManager : INotifyPropertyChanged
         }
     }
 
-    private string _bugReportApiKey = "hjh7yu6t56tyr540o9u8767676r5674534453235264c75b6t7ggghgg76trf564e";
+    private string _bugReportApiKey = AppConstants.BugReportApiKey;
 
     public string BugReportApiKey
     {
@@ -290,7 +286,7 @@ public class SettingsManager : INotifyPropertyChanged
         }
     }
 
-    private string _bugReportApiUrl = "https://www.purelogiccode.com/bugreport/api/send-bug-report";
+    private string _bugReportApiUrl = AppConstants.BugReportApiUrl;
 
     public string BugReportApiUrl
     {
@@ -344,15 +340,18 @@ public class SettingsManager : INotifyPropertyChanged
     {
         try
         {
-            if (!File.Exists(SettingsFilePath))
+            var bestPath = GetMostRecentSettingsFilePath();
+
+            if (bestPath == null || !File.Exists(bestPath))
             {
                 SetDefaultSettings();
                 try { SaveSettings(); }
                 catch (Exception saveEx) { _ = ErrorLogger.LogAsync(saveEx, "Failed to save default settings to settings.xml"); }
+
                 return;
             }
 
-            var doc = XDocument.Load(SettingsFilePath);
+            var doc = XDocument.Load(bestPath);
             var root = doc.Element("Settings");
 
             if (root == null)
@@ -367,7 +366,7 @@ public class SettingsManager : INotifyPropertyChanged
 
             SimilarityThreshold = double.Parse(GetValue("SimilarityThreshold", "70"), CultureInfo.InvariantCulture);
             SelectedSimilarityAlgorithm = GetValue("SimilarityAlgorithm", "Jaro-Winkler Distance");
-            BaseTheme = GetValue("BaseTheme", "Light");
+            BaseTheme = GetValue("BaseTheme", "Dark");
             AccentColor = GetValue("AccentColor", "Blue");
 
             var imageSizeElement = root.Element("ImageSize");
@@ -389,8 +388,8 @@ public class SettingsManager : INotifyPropertyChanged
             ApiTimeoutSeconds = int.Parse(GetValue("ApiTimeoutSeconds", "30"), CultureInfo.InvariantCulture);
 
             SearchEngine = GetValue("SearchEngine", "BingWeb");
-            BugReportApiKey = GetValue("BugReportApiKey", "hjh7yu6t56tyr540o9u8767676r5674534453235264c75b6t7ggghgg76trf564e");
-            BugReportApiUrl = GetValue("BugReportApiUrl", "https://www.purelogiccode.com/bugreport/api/send-bug-report");
+            BugReportApiKey = GetValue("BugReportApiKey", AppConstants.BugReportApiKey);
+            BugReportApiUrl = GetValue("BugReportApiUrl", AppConstants.BugReportApiUrl);
             GoogleKey = GetValue("GoogleKey", string.Empty);
             GoogleSearchEngineId = GetValue("GoogleSearchEngineId", "d30e97188f5914611");
 
@@ -422,12 +421,40 @@ public class SettingsManager : INotifyPropertyChanged
         }
     }
 
+    private static string? GetMostRecentSettingsFilePath()
+    {
+        var appDirExists = File.Exists(SettingsFilePath);
+        var userDataExists = File.Exists(UserDataSettingsFilePath);
+
+        switch (appDirExists)
+        {
+            case false when !userDataExists:
+                return null;
+            case true when !userDataExists:
+                return SettingsFilePath;
+            case false when userDataExists:
+                return UserDataSettingsFilePath;
+            default:
+                // Both exist - use the most recently modified one
+                try
+                {
+                    var appDirTime = File.GetLastWriteTimeUtc(SettingsFilePath);
+                    var userDataTime = File.GetLastWriteTimeUtc(UserDataSettingsFilePath);
+                    return userDataTime > appDirTime ? UserDataSettingsFilePath : SettingsFilePath;
+                }
+                catch
+                {
+                    // If we can't get the write time, prefer the app directory version
+                    return SettingsFilePath;
+                }
+        }
+    }
+
     public void SaveSettings()
     {
-        XDocument doc;
         lock (_saveLock)
         {
-            doc = new XDocument(
+            var doc = new XDocument(
                 new XElement("Settings",
                     new XElement("SimilarityThreshold", SimilarityThreshold.ToString(CultureInfo.InvariantCulture)),
                     new XElement("SimilarityAlgorithm", SelectedSimilarityAlgorithm),
@@ -453,36 +480,54 @@ public class SettingsManager : INotifyPropertyChanged
                     new XElement("GoogleSearchEngineId", GoogleSearchEngineId)
                 )
             );
-        }
 
-        var tempFilePath = SettingsFilePath + ".tmp";
-        lock (FileLock)
+            // Try to save to the application directory first
+            var savedToAppDir = TrySaveToFile(doc, SettingsFilePath);
+
+            // Also save to the user data folder as a backup / fallback
+            _ = TrySaveToFile(doc, UserDataSettingsFilePath);
+
+            if (!savedToAppDir)
+            {
+                ShowSaveError("Could not save settings to the application folder. Settings were saved to the user data folder instead.");
+            }
+        }
+    }
+
+    private bool TrySaveToFile(XDocument doc, string filePath)
+    {
+        var tempFilePath = filePath + ".tmp";
+        try
         {
-            try
+            var directory = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
             {
-                doc.Save(tempFilePath);
-                File.Copy(tempFilePath, SettingsFilePath, true);
+                Directory.CreateDirectory(directory);
             }
-            catch (UnauthorizedAccessException ex)
-            {
-                ShowSaveError($"Access denied to settings.xml: {ex.Message}\n\nTry running as administrator.");
-                _ = ErrorLogger.LogAsync(ex, "Failed to save settings");
-            }
-            catch (IOException ex)
-            {
-                ShowSaveError($"Error saving settings to settings.xml: {ex.Message}");
-                _ = ErrorLogger.LogAsync(ex, "Failed to save settings");
-            }
-            catch (Exception ex)
-            {
-                ShowSaveError($"Error saving settings to settings.xml: {ex.Message}");
-                _ = ErrorLogger.LogAsync(ex, "Failed to save settings");
-            }
-            finally
-            {
-                try { if (File.Exists(tempFilePath)) File.Delete(tempFilePath); }
-                catch (Exception cleanupEx) { _ = ErrorLogger.LogAsync(cleanupEx, $"Failed to cleanup settings temp file: {tempFilePath}"); }
-            }
+
+            doc.Save(tempFilePath);
+            File.Copy(tempFilePath, filePath, true);
+            return true;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _ = ErrorLogger.LogAsync(ex, $"Access denied saving settings to: {filePath}");
+            return false;
+        }
+        catch (IOException ex)
+        {
+            _ = ErrorLogger.LogAsync(ex, $"I/O error saving settings to: {filePath}");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _ = ErrorLogger.LogAsync(ex, $"Failed to save settings to: {filePath}");
+            return false;
+        }
+        finally
+        {
+            try { if (File.Exists(tempFilePath)) File.Delete(tempFilePath); }
+            catch (Exception cleanupEx) { _ = ErrorLogger.LogAsync(cleanupEx, $"Failed to cleanup settings temp file: {tempFilePath}"); }
         }
     }
 
@@ -505,13 +550,13 @@ public class SettingsManager : INotifyPropertyChanged
         _supportedExtensions = GetDefaultExtensions();
         _imageWidth = 300;
         _imageHeight = 300;
-        _baseTheme = AppConstants.Themes.Light;
+        _baseTheme = AppConstants.Themes.Dark;
         _accentColor = "Blue";
         _useMameDescriptions = false;
         _lastImageFolder = string.Empty;
         _searchEngine = "BingWeb";
-        _bugReportApiKey = "hjh7yu6t56tyr540o9u8767676r5674534453235264c75b6t7ggghgg76trf564e";
-        _bugReportApiUrl = "https://www.purelogiccode.com/bugreport/api/send-bug-report";
+        _bugReportApiKey = AppConstants.BugReportApiKey;
+        _bugReportApiUrl = AppConstants.BugReportApiUrl;
         _googleKey = string.Empty;
         _googleSearchEngineId = "d30e97188f5914611";
     }

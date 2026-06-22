@@ -270,25 +270,25 @@ public class SettingsManagerPropertyTests
     }
 
     [Fact]
-    public void BaseThemeWithInvalidValueShouldDefaultToLight()
+    public void BaseThemeWithInvalidValueShouldDefaultToDark()
     {
         var settings = new SettingsManager
         {
             BaseTheme = "InvalidTheme"
         };
 
-        settings.BaseTheme.Should().Be("Light");
+        settings.BaseTheme.Should().Be("Dark");
     }
 
     [Fact]
-    public void BaseThemeWithEmptyShouldDefaultToLight()
+    public void BaseThemeWithEmptyShouldDefaultToDark()
     {
         var settings = new SettingsManager
         {
             BaseTheme = ""
         };
 
-        settings.BaseTheme.Should().Be("Light");
+        settings.BaseTheme.Should().Be("Dark");
     }
 
     [Theory]
@@ -329,15 +329,14 @@ public class SettingsManagerPropertyTests
     }
 
     [Fact]
-    public void UseMameDescriptionAliasShouldWork()
+    public void UseMameDescriptionsShouldWork()
     {
         var settings = new SettingsManager
         {
-            UseMameDescription = true
+            UseMameDescriptions = true
         };
 
         settings.UseMameDescriptions.Should().BeTrue();
-        settings.UseMameDescription.Should().BeTrue();
     }
 
     [Fact]

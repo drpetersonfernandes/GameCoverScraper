@@ -25,10 +25,25 @@ public static class HttpClientHelper
         return client;
     });
 
-    public static HttpClient Client => HttpClient.Value;
+    private static volatile bool _disposed;
+
+    public static HttpClient Client
+    {
+        get
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(HttpClientHelper), "HttpClientHelper has been disposed.");
+
+            return HttpClient.Value;
+        }
+    }
 
     public static void Dispose()
     {
+        if (_disposed) return;
+
+        _disposed = true;
+
         if (HttpClient.IsValueCreated)
         {
             try

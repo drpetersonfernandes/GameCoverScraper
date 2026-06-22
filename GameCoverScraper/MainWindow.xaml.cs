@@ -38,46 +38,61 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     public bool IsCheckingMissing
     {
         get;
-        set { if (field == value) return;
+        set
+        {
+            if (field == value) return;
 
             field = value;
-            OnPropertyChanged(); }
+            OnPropertyChanged();
+        }
     }
 
     public bool IsFindingSimilar
     {
         get;
-        set { if (field == value) return;
+        set
+        {
+            if (field == value) return;
 
             field = value;
-            OnPropertyChanged(); }
+            OnPropertyChanged();
+        }
     }
 
     public bool HasSearchedSimilar
     {
         get;
-        set { if (field == value) return;
+        set
+        {
+            if (field == value) return;
 
             field = value;
-            OnPropertyChanged(); }
+            OnPropertyChanged();
+        }
     }
 
     public bool IsSearching
     {
         get;
-        set { if (field == value) return;
+        set
+        {
+            if (field == value) return;
 
             field = value;
-            OnPropertyChanged(); }
+            OnPropertyChanged();
+        }
     }
 
     public bool HasSearchedApi
     {
         get;
-        set { if (field == value) return;
+        set
+        {
+            if (field == value) return;
 
             field = value;
-            OnPropertyChanged(); }
+            OnPropertyChanged();
+        }
     }
 
     public SettingsManager Settings { get; }
@@ -170,7 +185,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
             if (!string.IsNullOrEmpty(TxtRomFolder.Text) && !string.IsNullOrEmpty(TxtImageFolder.Text))
             {
-                BtnCheckForMissingImages_ClickAsync(this, new RoutedEventArgs());
+                await RefreshMissingImagesListAsync();
             }
         }
         catch (Exception ex)
@@ -393,19 +408,49 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         }
     }
 
-    private void ShowAboutWindow_Click(object sender, RoutedEventArgs e) { new AboutWindow { Owner = this }.ShowDialog(); }
-
-    private void CheckForUpdates_Click(object sender, RoutedEventArgs e)
+    private void ShowAboutWindow_Click(object sender, RoutedEventArgs e)
     {
-        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/drpetersonfernandes/GameCoverScraper/releases") { UseShellExecute = true }); }
+        new AboutWindow { Owner = this }.ShowDialog();
+    }
+
+    private async void CheckForUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var updateInfo = await UpdateCheckService.CheckForUpdateAsync();
+
+            if (updateInfo is { IsUpdateAvailable: true })
+            {
+                var choice = MessageBox.Show(
+                    $"A new version of GameCoverScraper is available!\n\n" +
+                    $"Current: {updateInfo.CurrentVersion}\n" +
+                    $"Latest: {updateInfo.LatestVersion}\n\n" +
+                    "Would you like to go to the download page?",
+                    "Update Available", MessageBoxButton.YesNo, MessageBoxImage.Information);
+
+                if (choice == MessageBoxResult.Yes)
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(updateInfo.ReleaseUrl) { UseShellExecute = true });
+                }
+            }
+            else
+            {
+                MessageBox.Show(
+                    $"You are running the latest version (v{updateInfo.CurrentVersion}).",
+                    "No Updates Available", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
         catch (Exception ex)
         {
-            MessageBox.Show($"Unable to open the link: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            _ = ErrorLogger.LogAsync(ex, "Error opening updates link");
+            MessageBox.Show($"Unable to check for updates: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            _ = ErrorLogger.LogAsync(ex, "Error checking for updates");
         }
     }
 
-    private void ApiSettings_Click(object sender, RoutedEventArgs e) { new ApiSettingsWindow(Settings) { Owner = this }.ShowDialog(); }
+    private void ApiSettings_Click(object sender, RoutedEventArgs e)
+    {
+        new ApiSettingsWindow(Settings) { Owner = this }.ShowDialog();
+    }
 
     private void ToggleDebugWindow_Click(object sender, RoutedEventArgs e)
     {
@@ -424,34 +469,40 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     {
         if (_isMinimizedToTray)
         {
-            // Allow close when exiting from tray
+            // Allow close when exiting from tray - cancel running operations
+            try { _findSimilarCts?.Cancel(); }
+            catch
+            {
+                // ignored
+            }
+
+            try { _loadMissingCts?.Cancel(); }
+            catch
+            {
+                // ignored
+            }
+
             return;
         }
 
         // Minimize to tray instead of closing
         e.Cancel = true;
         MinimizeToTray();
-
-        try { _findSimilarCts?.Cancel(); }
-        catch
-        {
-            // ignored
-        }
-
-        try { _loadMissingCts?.Cancel(); }
-        catch
-        {
-            // ignored
-        }
     }
 
-    private void Exit_Click(object sender, RoutedEventArgs e) { ExitApplication(); }
+    private void Exit_Click(object sender, RoutedEventArgs e)
+    {
+        ExitApplication();
+    }
 
     private void BtnBrowseRomFolder_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFolderDialog { Title = "Select the folder where your ROM or ISO files are stored." };
-        if (dialog.ShowDialog() == true) { TxtRomFolder.Text = dialog.FolderName;
-            UpdateUiStateForFolderPaths(); }
+        if (dialog.ShowDialog() == true)
+        {
+            TxtRomFolder.Text = dialog.FolderName;
+            UpdateUiStateForFolderPaths();
+        }
     }
 
     private void BtnBrowseImageFolder_Click(object sender, RoutedEventArgs e)
@@ -483,9 +534,13 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         var cts = new CancellationTokenSource();
         _loadMissingCts = cts;
         try { await LoadMissingImagesListAsync(cts.Token); }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+        }
         catch (Exception ex) { _ = ErrorLogger.LogAsync(ex, "Error refreshing missing images list."); }
-        finally { cts.Dispose();
+        finally
+        {
+            cts.Dispose();
             if (_loadMissingCts == cts)
             {
                 _loadMissingCts = null;
@@ -537,8 +592,11 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 var processedCount = 0;
                 foreach (var romName in allRomNames)
                 {
-                    if (++processedCount % 100 == 0) { cancellationToken.ThrowIfCancellationRequested();
-                        await Task.Yield(); }
+                    if (++processedCount % 100 == 0)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        await Task.Yield();
+                    }
 
                     if (FindCorrespondingImage(romName, imageFolderPath) == null)
                     {
@@ -563,7 +621,9 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
             UpdateMissingCount();
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+        }
         catch (Exception ex)
         {
             MessageBox.Show($"Error checking for missing images: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -579,6 +639,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             var imagePath = Path.Combine(imageFolderPath, fileNameWithoutExtension + ext);
             if (File.Exists(imagePath)) return imagePath;
         }
+
         return null;
     }
 
@@ -599,6 +660,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             else { LblLocalSearchQuery.Content = null; }
         }
         catch (Exception ex) { _ = ErrorLogger.LogAsync(ex, "Error in RemoveSelectedItem"); }
+
         UpdateMissingCount();
     }
 
@@ -615,8 +677,11 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         App.AudioService.PlayClickSound();
     }
 
-    private void RemoveItemFromList_Click(object sender, RoutedEventArgs e) { RemoveSelectedItem();
-        App.AudioService.PlayClickSound(); }
+    private void RemoveItemFromList_Click(object sender, RoutedEventArgs e)
+    {
+        RemoveSelectedItem();
+        App.AudioService.PlayClickSound();
+    }
 
     private void CopyFileName_Click(object sender, RoutedEventArgs e)
     {
@@ -677,7 +742,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         // Try case-insensitive search
         if (!Directory.Exists(romFolderPath)) return null;
 
-        foreach (var file in Directory.EnumerateFiles(romFolderPath))
+        foreach (var file in Directory.EnumerateFiles(romFolderPath, "*.*", SearchOption.AllDirectories))
         {
             if (string.Equals(Path.GetFileNameWithoutExtension(file), fileNameWithoutExtension, StringComparison.OrdinalIgnoreCase))
             {
@@ -718,8 +783,11 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         if (sender is not MenuItem clickedItem) return;
 
         var headerText = clickedItem.Header.ToString()?.Replace("%", "") ?? "70";
-        if (double.TryParse(headerText, out var rate)) { Settings.SimilarityThreshold = rate;
-            Settings.SaveSettings(); }
+        if (double.TryParse(headerText, out var rate))
+        {
+            Settings.SimilarityThreshold = rate;
+            Settings.SaveSettings();
+        }
     }
 
     private void UpdateSimilarityThresholdChecks()
@@ -771,17 +839,53 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         }
     }
 
-    private void TxtRomFolder_TextChanged(object sender, TextChangedEventArgs e) { UpdateUiStateForFolderPaths(); }
-    private void TxtImageFolder_TextChanged(object sender, TextChangedEventArgs e) { UpdateUiStateForFolderPaths(); }
-    private void TxtRomFolder_LostFocus(object sender, RoutedEventArgs e) { UpdateUiStateForFolderPaths(); }
-    private void TxtImageFolder_LostFocus(object sender, RoutedEventArgs e) { UpdateUiStateForFolderPaths(); }
-    private void TxtRomFolder_PreviewKeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) { UpdateUiStateForFolderPaths();
-        e.Handled = true; } }
-    private void TxtImageFolder_PreviewKeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Enter) { UpdateUiStateForFolderPaths();
-        e.Handled = true; } }
+    private void TxtRomFolder_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        UpdateUiStateForFolderPaths();
+    }
 
-    private string? GetValidatedImageFolderPath(bool showWarning = true) { return ValidateFolderPath(TxtImageFolder.Text.Trim(), "Image", showWarning); }
-    private string? GetValidatedRomFolderPath(bool showWarning = true) { return ValidateFolderPath(TxtRomFolder.Text.Trim(), "ROM", showWarning); }
+    private void TxtImageFolder_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        UpdateUiStateForFolderPaths();
+    }
+
+    private void TxtRomFolder_LostFocus(object sender, RoutedEventArgs e)
+    {
+        UpdateUiStateForFolderPaths();
+    }
+
+    private void TxtImageFolder_LostFocus(object sender, RoutedEventArgs e)
+    {
+        UpdateUiStateForFolderPaths();
+    }
+
+    private void TxtRomFolder_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            UpdateUiStateForFolderPaths();
+            e.Handled = true;
+        }
+    }
+
+    private void TxtImageFolder_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            UpdateUiStateForFolderPaths();
+            e.Handled = true;
+        }
+    }
+
+    private string? GetValidatedImageFolderPath(bool showWarning = true)
+    {
+        return ValidateFolderPath(TxtImageFolder.Text.Trim(), "Image", showWarning);
+    }
+
+    private string? GetValidatedRomFolderPath(bool showWarning = true)
+    {
+        return ValidateFolderPath(TxtRomFolder.Text.Trim(), "ROM", showWarning);
+    }
 
     private static string? ValidateFolderPath(string path, string folderType, bool showWarning)
     {
@@ -800,9 +904,12 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             var imagePathValid = !string.IsNullOrEmpty(TxtImageFolder.Text.Trim()) && Directory.Exists(TxtImageFolder.Text.Trim());
             BtnCheckForMissingImages.IsEnabled = romPathValid && imagePathValid;
             LstMissingImages.IsEnabled = romPathValid && imagePathValid;
-            if (!romPathValid || !imagePathValid) { MissingImages.Clear();
+            if (!romPathValid || !imagePathValid)
+            {
+                MissingImages.Clear();
                 SimilarImages.Clear();
-                UpdateMissingCount(); }
+                UpdateMissingCount();
+            }
 
             StartImageFolderWatcher(imagePathValid ? TxtImageFolder.Text.Trim() : null);
 
@@ -865,8 +972,11 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         }
     }
 
-    protected override void OnClosed(EventArgs e) { Dispose();
-        base.OnClosed(e); }
+    protected override void OnClosed(EventArgs e)
+    {
+        Dispose();
+        base.OnClosed(e);
+    }
 
     public void Dispose()
     {
