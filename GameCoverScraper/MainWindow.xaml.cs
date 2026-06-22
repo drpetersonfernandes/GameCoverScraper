@@ -582,20 +582,19 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         return null;
     }
 
-    private void RemoveSelectedItem()
+    private void RemoveSelectedItem(int? index = null)
     {
-        if (LstMissingImages.SelectedItem == null || LstMissingImages.SelectedIndex < 0) return;
+        var removeIndex = index ?? LstMissingImages.SelectedIndex;
+        if (removeIndex < 0 || removeIndex >= MissingImages.Count) return;
 
         try
         {
-            var oldIndex = LstMissingImages.SelectedIndex;
-            MissingImages.RemoveAt(oldIndex);
+            MissingImages.RemoveAt(removeIndex);
             if (MissingImages.Count > 0)
             {
-                var newIndex = Math.Min(oldIndex, MissingImages.Count - 1);
+                var newIndex = Math.Min(removeIndex, MissingImages.Count - 1);
                 LstMissingImages.SelectedIndex = newIndex;
-                if (newIndex >= 0 && MissingImages.Count > newIndex)
-                    LstMissingImages.ScrollIntoView(MissingImages[newIndex]);
+                LstMissingImages.ScrollIntoView(MissingImages[newIndex]);
             }
             else { LblLocalSearchQuery.Content = null; }
         }
@@ -817,26 +816,29 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         _imageFolderWatcher?.Stop();
 
         if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
+        {
+            AppLogger.Log($"StartImageFolderWatcher: skipped (path='{folderPath}', exists={Directory.Exists(folderPath ?? "")})");
             return;
+        }
 
         _imageFolderWatcher ??= new ImageFolderWatcher();
         _imageFolderWatcher.ImageFound -= OnImageFolderImageFound;
         _imageFolderWatcher.ImageFound += OnImageFolderImageFound;
         _imageFolderWatcher.Start(folderPath);
+        AppLogger.Log($"StartImageFolderWatcher: watcher started for '{folderPath}'");
     }
 
     private void OnImageFolderImageFound(string fileNameWithoutExtension)
     {
         Dispatcher.Invoke(() =>
         {
-            var item = MissingImages.FirstOrDefault(m =>
+            var index = MissingImages.ToList().FindIndex(m =>
                 string.Equals(m.RomName, fileNameWithoutExtension, StringComparison.OrdinalIgnoreCase));
 
-            if (item == null) return;
+            if (index < 0) return;
 
-            MissingImages.Remove(item);
-            UpdateMissingCount();
-            AppLogger.Log($"Auto-removed '{fileNameWithoutExtension}' from missing images (file detected in image folder).");
+            RemoveSelectedItem(index);
+            AppLogger.Log($"Auto-removed '{fileNameWithoutExtension}' from missing images.");
         });
     }
 

@@ -68,7 +68,6 @@
             <MenuItem ToolTip="Theme and appearance settings">
                 <MenuItem.Header>
                     <StackPanel Orientation="Horizontal">
-                        <Image Source="pack://application:,,,/images/theme.png" Width="16" Height="16" Margin="0,0,5,0" />
                         <TextBlock Text="Theme" />
                     </StackPanel>
                 </MenuItem.Header>

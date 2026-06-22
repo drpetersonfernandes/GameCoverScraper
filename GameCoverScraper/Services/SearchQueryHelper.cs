@@ -59,6 +59,6 @@ internal static partial class SearchQueryHelper
         return string.IsNullOrWhiteSpace(sanitized) ? "unnamed" : sanitized;
     }
 
-    [GeneratedRegex(@"\s*(\(.*?\)|\[.*?\])", RegexOptions.Compiled)]
+    [GeneratedRegex(@"\s*(\(.*?\)|\[.*?\]|\{.*?\})", RegexOptions.Compiled)]
     private static partial Regex MyRegex();
 }

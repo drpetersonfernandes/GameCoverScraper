@@ -48,7 +48,8 @@ public partial class MainWindow
 
         // Build the search query for web/API tabs
         var extraQuery = TxtExtraQuery.Text.Trim();
-        var searchQuery = !string.IsNullOrWhiteSpace(extraQuery) ? $"\"{selectedItemSearchName}\" {extraQuery}" : $"\"{selectedItemSearchName}\"";
+        var cleanedSearchName = SearchQueryHelper.CleanSearchQuery(selectedItemSearchName);
+        var searchQuery = !string.IsNullOrWhiteSpace(extraQuery) ? $"\"{cleanedSearchName}\" {extraQuery}" : $"\"{cleanedSearchName}\"";
 
         // Dispatch based on active tab
         var activeTab = SearchTabControl.SelectedIndex;
