@@ -108,10 +108,16 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         DataContext = this;
 
         CheckForMissingImagesCommand = new DelegateCommand(
-            async void (o) =>
+            async void (_) =>
             {
-                try { await RefreshMissingImagesListAsync(); }
-                catch (Exception ex) { o = ErrorLogger.LogAsync(ex, "Error in CheckForMissingImagesCommand"); }
+                try
+                {
+                    await RefreshMissingImagesListAsync();
+                }
+                catch (Exception ex)
+                {
+                    await ErrorLogger.LogAsync(ex, "Error in CheckForMissingImagesCommand");
+                }
             },
             _ => BtnCheckForMissingImages?.IsEnabled ?? false);
         ExitCommand = new DelegateCommand(_ => Close());
@@ -950,6 +956,8 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         _imageFolderWatcher ??= new ImageFolderWatcher();
         _imageFolderWatcher.ImageFound -= OnImageFolderImageFound;
         _imageFolderWatcher.ImageFound += OnImageFolderImageFound;
+        _imageFolderWatcher.ConversionFailed -= OnImageFolderConversionFailed;
+        _imageFolderWatcher.ConversionFailed += OnImageFolderConversionFailed;
         _imageFolderWatcher.Start(folderPath);
         AppLogger.Log($"StartImageFolderWatcher: watcher started for '{folderPath}'");
     }
@@ -965,6 +973,18 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
             RemoveSelectedItem(index);
             AppLogger.Log($"Auto-removed '{fileNameWithoutExtension}' from missing images.");
+        });
+    }
+
+    private void OnImageFolderConversionFailed(string filePath, string errorMessage)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            MessageBox.Show(
+                $"Failed to convert image:\n\n{Path.GetFileName(filePath)}\n\n{errorMessage}",
+                "Image Conversion Failed",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
         });
     }
 

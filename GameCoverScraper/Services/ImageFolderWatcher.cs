@@ -18,6 +18,7 @@ public sealed class ImageFolderWatcher : IDisposable
     };
 
     public event Action<string>? ImageFound;
+    public event Action<string, string>? ConversionFailed;
 
     private string? _pendingRenameTarget;
     private readonly object _renameLock = new();
@@ -37,17 +38,15 @@ public sealed class ImageFolderWatcher : IDisposable
         }
     }
 
-    public bool TryClearPendingRenameTarget(string? expectedValue)
+    private void TryClearPendingRenameTarget(string? expectedValue)
     {
         lock (_renameLock)
         {
-            if (_pendingRenameTarget != expectedValue)
-                return false;
+            if (_pendingRenameTarget != expectedValue) return;
 
             var old = _pendingRenameTarget;
             _pendingRenameTarget = null;
             AppLogger.Log($"ImageFolderWatcher: PendingRenameTarget cleared from '{old}'");
-            return true;
         }
     }
 
@@ -56,7 +55,7 @@ public sealed class ImageFolderWatcher : IDisposable
         _recentlyProcessed.TryAdd(filePath, 1);
         _ = Task.Run(async () =>
         {
-            await Task.Delay(5000);
+            await Task.Delay(60000);
             _recentlyProcessed.TryRemove(filePath, out _);
         });
         AppLogger.Log($"ImageFolderWatcher: pre-registered '{Path.GetFileName(filePath)}' so watcher will skip it");
@@ -182,24 +181,25 @@ public sealed class ImageFolderWatcher : IDisposable
             if (string.IsNullOrEmpty(fileNameWithoutExt))
                 return;
 
-            // Deduplicate: skip if this exact file path was processed very recently
-            if (!_recentlyProcessed.TryAdd(filePath, 1))
-            {
-                AppLogger.Log($"ImageFolderWatcher: skipping '{Path.GetFileName(filePath)}' — dedup hit");
-                return;
-            }
-
-            // Clean up old dedupe entries after 5 seconds
-            var dedupeKey = filePath;
-            _ = Task.Run(async () =>
-            {
-                await Task.Delay(5000);
-                _recentlyProcessed.TryRemove(dedupeKey, out _);
-            });
-
             await _processingLock.WaitAsync();
             try
             {
+                // Deduplicate INSIDE the lock to prevent races with file system events
+                // that fire during our own rename/convert operations
+                if (!_recentlyProcessed.TryAdd(filePath, 1))
+                {
+                    AppLogger.Log($"ImageFolderWatcher: skipping '{Path.GetFileName(filePath)}' — dedup hit");
+                    return;
+                }
+
+                // Clean up old dedupe entries after 60 seconds (must outlast any in-lock wait)
+                var dedupeKey = filePath;
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(60000);
+                    _recentlyProcessed.TryRemove(dedupeKey, out _);
+                });
+
                 await WaitForFileReadyAsync(filePath);
 
                 if (!File.Exists(filePath))
@@ -231,6 +231,11 @@ public sealed class ImageFolderWatcher : IDisposable
                     {
                         TryClearPendingRenameTarget(renameTarget);
                         _recentlyProcessed.TryAdd(renamedPath, 1);
+                        _ = Task.Run(async () =>
+                        {
+                            await Task.Delay(60000);
+                            _recentlyProcessed.TryRemove(renamedPath, out _);
+                        });
                         AppLogger.Log($"ImageFolderWatcher: renamed '{Path.GetFileName(filePath)}' to '{Path.GetFileName(renamedPath)}'");
                         filePath = renamedPath;
                         fileNameWithoutExt = renameTarget;
@@ -243,14 +248,20 @@ public sealed class ImageFolderWatcher : IDisposable
 
                 if (!Path.GetExtension(filePath).Equals(".png", StringComparison.OrdinalIgnoreCase))
                 {
-                    var convertedPath = await ConvertToPngWithRetryAsync(filePath);
+                    var (convertedPath, convertError) = await ConvertToPngWithRetryAsync(filePath);
                     if (convertedPath == null)
                     {
                         AppLogger.Log($"ImageFolderWatcher: conversion to PNG failed for '{filePath}' — ImageFound NOT fired");
+                        ConversionFailed?.Invoke(filePath, convertError ?? "Unknown error");
                         return;
                     }
 
                     _recentlyProcessed.TryAdd(convertedPath, 1);
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(60000);
+                        _recentlyProcessed.TryRemove(convertedPath, out _);
+                    });
 
                     filePath = convertedPath;
                 }
@@ -358,17 +369,19 @@ public sealed class ImageFolderWatcher : IDisposable
         return false;
     }
 
-    private static async Task<string?> ConvertToPngWithRetryAsync(string sourcePath)
+    private static async Task<(string? Path, string? Error)> ConvertToPngWithRetryAsync(string sourcePath)
     {
         const int maxRetries = 3;
         const int baseDelayMs = 300;
+        string? lastError = null;
 
         for (var attempt = 1; attempt <= maxRetries; attempt++)
         {
-            var result = await ConvertToPngAsync(sourcePath);
-            if (result != null)
-                return result;
+            var (path, error) = await ConvertToPngAsync(sourcePath);
+            if (path != null)
+                return (path, null);
 
+            lastError = error;
             if (attempt < maxRetries)
             {
                 AppLogger.Log($"ImageFolderWatcher: convert retry {attempt}/{maxRetries} for '{sourcePath}'");
@@ -377,10 +390,10 @@ public sealed class ImageFolderWatcher : IDisposable
             }
         }
 
-        return null;
+        return (null, lastError);
     }
 
-    private static async Task<string?> ConvertToPngAsync(string sourcePath)
+    private static async Task<(string? Path, string? Error)> ConvertToPngAsync(string sourcePath)
     {
         var directory = Path.GetDirectoryName(sourcePath);
         var fileNameWithoutExt = Path.GetFileNameWithoutExtension(sourcePath);
@@ -405,12 +418,12 @@ public sealed class ImageFolderWatcher : IDisposable
                 }
             }
 
-            return targetPath;
+            return (targetPath, null);
         }
         catch (Exception ex)
         {
             _ = ErrorLogger.LogAsync(ex, $"Failed to convert image to PNG: {sourcePath}");
-            return null;
+            return (null, ex.Message);
         }
     }
 
