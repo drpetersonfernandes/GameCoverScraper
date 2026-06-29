@@ -179,7 +179,8 @@ public partial class MainWindow
 
             try
             {
-                var newFileName = Path.Combine(imageFolderPath, _selectedRomFileName + ".png");
+                var safeFileName = SearchQueryHelper.SanitizeFileName(_selectedRomFileName);
+                var newFileName = Path.Combine(imageFolderPath, safeFileName + ".png");
                 _imageFolderWatcher?.PreRegisterExpectedFile(newFileName);
                 var result = await App.ImageSaveService.DownloadAndSaveImageAsync(imageData.ImagePath, newFileName);
 

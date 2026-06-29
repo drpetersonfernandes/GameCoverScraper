@@ -18,7 +18,15 @@ public class LocalAudioService : IAudioService
             {
                 if (Thread.CurrentThread.GetApartmentState() != ApartmentState.STA)
                 {
-                    System.Windows.Application.Current.Dispatcher.Invoke(() => InitializeMediaPlayer(soundPath));
+                    var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                    if (dispatcher != null)
+                    {
+                        dispatcher.Invoke(() => InitializeMediaPlayer(soundPath));
+                    }
+                    else
+                    {
+                        _isSoundAvailable = false;
+                    }
                 }
                 else
                 {
@@ -60,7 +68,7 @@ public class LocalAudioService : IAudioService
 
     public void PlayClickSound()
     {
-        if (!_isSoundAvailable) return;
+        if (!_isSoundAvailable || _mediaPlayer == null) return;
 
         try
         {

@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text.RegularExpressions;
 
 namespace GameCoverScraper.Services;
@@ -14,6 +15,30 @@ internal static partial class SearchQueryHelper
 
         // If cleaning removed everything (unlikely), fall back to the original name
         return string.IsNullOrWhiteSpace(cleanedName) ? fileName : cleanedName;
+    }
+
+    internal static string SanitizeFileName(string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+            return "unnamed";
+
+        var invalidChars = Path.GetInvalidFileNameChars();
+
+        var sanitized = fileName;
+        while (sanitized.Contains(".."))
+        {
+            sanitized = sanitized.Replace("..", "");
+        }
+
+        sanitized = new string(sanitized
+            .Replace("/", "")
+            .Replace("\\", "")
+            .Select(c => invalidChars.Contains(c) ? '_' : c)
+            .ToArray());
+
+        sanitized = sanitized.Trim().TrimEnd('.');
+
+        return string.IsNullOrWhiteSpace(sanitized) ? "unnamed" : sanitized;
     }
 
     [GeneratedRegex(@"\s*(\(.*?\)|\[.*?\]|\{.*?\})", RegexOptions.Compiled)]

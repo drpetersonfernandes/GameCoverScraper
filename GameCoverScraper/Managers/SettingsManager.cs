@@ -10,7 +10,14 @@ namespace GameCoverScraper.Managers;
 
 public class SettingsManager : INotifyPropertyChanged
 {
-    public static SettingsManager? CurrentInstance { get; private set; }
+    private static SettingsManager? _currentInstance;
+    private static readonly object InstanceLock = new();
+
+    public static SettingsManager? CurrentInstance
+    {
+        get { lock (InstanceLock) { return _currentInstance; } }
+        private set { lock (InstanceLock) { _currentInstance = value; } }
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -167,7 +174,7 @@ public class SettingsManager : INotifyPropertyChanged
 
     public int ThumbnailSize
     {
-        get => _imageWidth;
+        get => Math.Max(_imageWidth, _imageHeight);
         set
         {
             ImageWidth = value;

@@ -201,7 +201,8 @@ public partial class MainWindow
         var imageFolderPath = GetValidatedImageFolderPath(false);
         if (string.IsNullOrEmpty(_selectedRomFileName) || string.IsNullOrEmpty(imagePath) || string.IsNullOrEmpty(imageFolderPath)) return;
 
-        var newFileName = Path.Combine(imageFolderPath, _selectedRomFileName + ".png");
+        var safeFileName = SearchQueryHelper.SanitizeFileName(_selectedRomFileName);
+        var newFileName = Path.Combine(imageFolderPath, safeFileName + ".png");
         _imageFolderWatcher?.PreRegisterExpectedFile(newFileName);
 
         try
