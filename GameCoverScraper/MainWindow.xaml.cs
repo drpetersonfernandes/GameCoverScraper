@@ -638,7 +638,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
     private static string? FindCorrespondingImage(string fileNameWithoutExtension, string imageFolderPath)
     {
-        foreach (var ext in new[] { ".png", ".jpg", ".jpeg" })
+        foreach (var ext in new[] { ".png", ".jpg", ".jpeg", ".avif", ".bmp", ".gif", ".webp", ".tiff", ".tif" })
         {
             var imagePath = Path.Combine(imageFolderPath, fileNameWithoutExtension + ext);
             if (File.Exists(imagePath)) return imagePath;

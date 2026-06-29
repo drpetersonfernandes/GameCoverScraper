@@ -13,7 +13,8 @@ public sealed class ImageFolderWatcher : IDisposable
 
     private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp", ".tiff", ".tif", ".avif"
+        ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp", ".tiff", ".tif",
+        ".avif", ".heic", ".heif", ".ico", ".svg", ".jxl", ".jp2"
     };
 
     public event Action<string>? ImageFound;
@@ -142,22 +143,23 @@ public sealed class ImageFolderWatcher : IDisposable
                     var directory = Path.GetDirectoryName(filePath);
                     var renamedPath = Path.Combine(directory ?? ".", renameTarget + extension);
 
-                    try
+                    var renamed = await MoveFileWithRetryAsync(filePath, renamedPath);
+                    if (renamed)
                     {
-                        File.Move(filePath, renamedPath);
                         _recentlyProcessed.TryAdd(renameTarget, 1);
                         filePath = renamedPath;
                         fileNameWithoutExt = renameTarget;
+                        AppLogger.Log($"ImageFolderWatcher: renamed '{Path.GetFileName(filePath)}' to '{Path.GetFileName(renamedPath)}'");
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        _ = ErrorLogger.LogAsync(ex, $"Failed to rename '{filePath}' to '{renamedPath}'");
+                        AppLogger.Log($"ImageFolderWatcher: failed to rename '{filePath}' to '{renamedPath}' after retries");
                     }
                 }
 
                 if (!Path.GetExtension(filePath).Equals(".png", StringComparison.OrdinalIgnoreCase))
                 {
-                    var convertedPath = await ConvertToPngAsync(filePath);
+                    var convertedPath = await ConvertToPngWithRetryAsync(filePath);
                     if (convertedPath == null)
                         return;
 
@@ -185,21 +187,42 @@ public sealed class ImageFolderWatcher : IDisposable
 
     private static async Task WaitForFileReadyAsync(string filePath)
     {
-        const int maxWaitMs = 5000;
-        const int pollIntervalMs = 200;
+        const int maxWaitMs = 10000;
+        const int pollIntervalMs = 250;
+        const int stableChecksRequired = 2;
         var elapsed = 0;
+        long lastSize = -1;
+        var stableCount = 0;
 
         while (elapsed < maxWaitMs)
         {
             try
             {
-                await using var stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                await using var stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                 if (stream.Length > 0)
-                    return;
+                {
+                    if (stream.Length == lastSize)
+                    {
+                        stableCount++;
+                        if (stableCount >= stableChecksRequired)
+                            return;
+                    }
+                    else
+                    {
+                        stableCount = 0;
+                        lastSize = stream.Length;
+                    }
+                }
+                else
+                {
+                    stableCount = 0;
+                    lastSize = 0;
+                }
             }
             catch (IOException)
             {
-                // File still being written or locked
+                stableCount = 0;
+                lastSize = -1;
             }
             catch (UnauthorizedAccessException)
             {
@@ -211,6 +234,63 @@ public sealed class ImageFolderWatcher : IDisposable
         }
     }
 
+    private static async Task<bool> MoveFileWithRetryAsync(string sourcePath, string targetPath)
+    {
+        const int maxRetries = 5;
+        const int baseDelayMs = 200;
+
+        for (var attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                File.Move(sourcePath, targetPath);
+                return true;
+            }
+            catch (IOException) when (attempt < maxRetries)
+            {
+                var delay = baseDelayMs * Math.Pow(2, attempt - 1);
+                await Task.Delay((int)delay);
+            }
+            catch (UnauthorizedAccessException) when (attempt < maxRetries)
+            {
+                var delay = baseDelayMs * Math.Pow(2, attempt - 1);
+                await Task.Delay((int)delay);
+            }
+            catch (Exception ex)
+            {
+                _ = ErrorLogger.LogAsync(ex, $"MoveFileWithRetryAsync: attempt {attempt} failed for '{sourcePath}' -> '{targetPath}'");
+                if (attempt >= maxRetries) return false;
+
+                var delay = baseDelayMs * Math.Pow(2, attempt - 1);
+                await Task.Delay((int)delay);
+            }
+        }
+
+        return false;
+    }
+
+    private static async Task<string?> ConvertToPngWithRetryAsync(string sourcePath)
+    {
+        const int maxRetries = 3;
+        const int baseDelayMs = 300;
+
+        for (var attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            var result = await ConvertToPngAsync(sourcePath);
+            if (result != null)
+                return result;
+
+            if (attempt < maxRetries)
+            {
+                AppLogger.Log($"ImageFolderWatcher: convert retry {attempt}/{maxRetries} for '{sourcePath}'");
+                var delay = baseDelayMs * Math.Pow(2, attempt - 1);
+                await Task.Delay((int)delay);
+            }
+        }
+
+        return null;
+    }
+
     private static async Task<string?> ConvertToPngAsync(string sourcePath)
     {
         var directory = Path.GetDirectoryName(sourcePath);
@@ -219,7 +299,8 @@ public sealed class ImageFolderWatcher : IDisposable
 
         try
         {
-            using var magickImage = new MagickImage(sourcePath);
+            var settings = GetMagickReadSettings(sourcePath);
+            using var magickImage = new MagickImage(sourcePath, settings);
             magickImage.AutoOrient();
             magickImage.Quality = 90;
             magickImage.Format = MagickFormat.Png;
@@ -242,6 +323,24 @@ public sealed class ImageFolderWatcher : IDisposable
             _ = ErrorLogger.LogAsync(ex, $"Failed to convert image to PNG: {sourcePath}");
             return null;
         }
+    }
+
+    private static MagickReadSettings GetMagickReadSettings(string filePath)
+    {
+        var settings = new MagickReadSettings();
+        var ext = Path.GetExtension(filePath).ToLowerInvariant();
+
+        settings.Format = ext switch
+        {
+            ".avif" => MagickFormat.Avif,
+            ".heic" => MagickFormat.Heic,
+            ".heif" => MagickFormat.Heif,
+            ".jxl" => MagickFormat.Jxl,
+            ".jp2" => MagickFormat.Jp2,
+            _ => MagickFormat.Unknown
+        };
+
+        return settings;
     }
 
     public void Dispose()

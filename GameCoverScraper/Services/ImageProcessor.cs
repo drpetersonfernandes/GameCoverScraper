@@ -138,7 +138,8 @@ public static class ImageProcessor
 
         try
         {
-            using var magickImage = new MagickImage(sourcePath);
+            var settings = GetMagickReadSettings(sourcePath);
+            using var magickImage = new MagickImage(sourcePath, settings);
 
             if (magickImage.Width == 0 || magickImage.Height == 0)
                 throw new InvalidOperationException("Image has zero dimensions");
@@ -263,5 +264,21 @@ public static class ImageProcessor
             MessageBoxImage.Error,
             lastException ?? new IOException("Write failed after all retries"),
             $"WriteBlob failed after {maxRetries} retries for: {sourcePath}");
+    }
+
+    private static MagickReadSettings GetMagickReadSettings(string filePath)
+    {
+        var settings = new MagickReadSettings();
+        var ext = Path.GetExtension(filePath).ToLowerInvariant();
+
+        settings.Format = ext switch
+        {
+            ".avif" => MagickFormat.Avif,
+            ".heic" => MagickFormat.Heic,
+            ".heif" => MagickFormat.Heif,
+            _ => MagickFormat.Unknown
+        };
+
+        return settings;
     }
 }

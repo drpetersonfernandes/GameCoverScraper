@@ -32,7 +32,7 @@ public static class SimilarityCalculator
             maxImagesToLoad = GetConfiguredMaxImagesToLoad();
         }
 
-        string[] imageExtensions = ["*.png", "*.jpg", "*.jpeg"];
+        string[] imageExtensions = ["*.png", "*.jpg", "*.jpeg", "*.avif", "*.bmp", "*.gif", "*.webp", "*.tiff", "*.tif"];
 
         var allImageFiles = imageExtensions
             .SelectMany(ext => Directory.EnumerateFiles(imageFolderPath, ext))
