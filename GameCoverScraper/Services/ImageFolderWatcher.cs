@@ -238,7 +238,6 @@ public sealed class ImageFolderWatcher : IDisposable
                         });
                         AppLogger.Log($"ImageFolderWatcher: renamed '{Path.GetFileName(filePath)}' to '{Path.GetFileName(renamedPath)}'");
                         filePath = renamedPath;
-                        fileNameWithoutExt = renameTarget;
                     }
                     else
                     {
