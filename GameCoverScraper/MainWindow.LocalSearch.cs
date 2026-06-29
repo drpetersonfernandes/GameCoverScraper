@@ -34,12 +34,16 @@ public partial class MainWindow
             IsSearching = false;
             HasSearchedSimilar = false;
             HasSearchedApi = false;
+            _imageFolderWatcher?.PendingRenameTarget = null;
             return;
         }
 
         var selectedItemRomName = selectedItem.RomName;
         var selectedItemSearchName = selectedItem.SearchName;
         _selectedRomFileName = selectedItemRomName;
+
+        var activeTab = SearchTabControl.SelectedIndex;
+        _imageFolderWatcher?.PendingRenameTarget = activeTab is 1 or 2 ? selectedItemRomName : null;
 
         try { Clipboard.SetText(selectedItemRomName); }
         catch (System.Runtime.InteropServices.COMException)
@@ -56,7 +60,6 @@ public partial class MainWindow
         var searchQuery = !string.IsNullOrWhiteSpace(extraQuery) ? $"\"{cleanedSearchName}\" {extraQuery}" : $"\"{cleanedSearchName}\"";
 
         // Dispatch based on active tab
-        var activeTab = SearchTabControl.SelectedIndex;
         switch (activeTab)
         {
             case 1: // Google Web

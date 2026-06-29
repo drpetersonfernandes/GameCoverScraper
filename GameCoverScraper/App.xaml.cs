@@ -46,7 +46,6 @@ public partial class App
     private static void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton<SettingsManager>();
-        services.AddSingleton<MainWindow>();
     }
 
     private static void FireAndForget(Func<Task> asyncAction)
@@ -152,7 +151,7 @@ public partial class App
 
             ApplyTheme(settings.BaseTheme, settings.AccentColor);
 
-            var mainWindow = ServiceProvider.GetRequiredService<MainWindow>();
+            var mainWindow = new MainWindow(SettingsManager, StartupImageFolderPath, StartupRomFolderPath);
             mainWindow.Show();
 
             FireAndForget(CheckForUpdatesAsync);

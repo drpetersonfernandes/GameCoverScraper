@@ -111,9 +111,13 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             _ => BtnCheckForMissingImages?.IsEnabled ?? false);
         ExitCommand = new DelegateCommand(_ => Close());
 
-        if (!string.IsNullOrEmpty(startupImageFolder) && !string.IsNullOrEmpty(startupRomFolder))
+        if (!string.IsNullOrEmpty(startupImageFolder))
         {
             TxtImageFolder.Text = startupImageFolder;
+        }
+
+        if (!string.IsNullOrEmpty(startupRomFolder))
+        {
             TxtRomFolder.Text = startupRomFolder;
         }
 
@@ -945,6 +949,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             if (index < 0) return;
 
             RemoveSelectedItem(index);
+            _imageFolderWatcher?.PendingRenameTarget = null;
             AppLogger.Log($"Auto-removed '{fileNameWithoutExtension}' from missing images.");
         });
     }

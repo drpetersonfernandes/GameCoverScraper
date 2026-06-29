@@ -18,6 +18,8 @@ public sealed class ImageFolderWatcher : IDisposable
 
     public event Action<string>? ImageFound;
 
+    public string? PendingRenameTarget { get; set; }
+
     public void Start(string folderPath)
     {
         Stop();
@@ -118,10 +120,11 @@ public sealed class ImageFolderWatcher : IDisposable
                 return;
 
             // Clean up old dedupe entries after 5 seconds
+            var ext = fileNameWithoutExt;
             _ = Task.Run(async () =>
             {
                 await Task.Delay(5000);
-                _recentlyProcessed.TryRemove(fileNameWithoutExt, out _);
+                _recentlyProcessed.TryRemove(ext, out _);
             });
 
             await _processingLock.WaitAsync();
@@ -132,13 +135,32 @@ public sealed class ImageFolderWatcher : IDisposable
                 if (!File.Exists(filePath))
                     return;
 
-                if (extension != ".png")
+                var renameTarget = PendingRenameTarget;
+                if (!string.IsNullOrEmpty(renameTarget))
+                {
+                    PendingRenameTarget = null;
+                    var directory = Path.GetDirectoryName(filePath);
+                    var renamedPath = Path.Combine(directory ?? ".", renameTarget + extension);
+
+                    try
+                    {
+                        File.Move(filePath, renamedPath);
+                        _recentlyProcessed.TryAdd(renameTarget, 1);
+                        filePath = renamedPath;
+                        fileNameWithoutExt = renameTarget;
+                    }
+                    catch (Exception ex)
+                    {
+                        _ = ErrorLogger.LogAsync(ex, $"Failed to rename '{filePath}' to '{renamedPath}'");
+                    }
+                }
+
+                if (!Path.GetExtension(filePath).Equals(".png", StringComparison.OrdinalIgnoreCase))
                 {
                     var convertedPath = await ConvertToPngAsync(filePath);
                     if (convertedPath == null)
                         return;
 
-                    // Block the converted .png from being reprocessed by the watcher
                     _recentlyProcessed.TryAdd(fileNameWithoutExt, 1);
 
                     filePath = convertedPath;
