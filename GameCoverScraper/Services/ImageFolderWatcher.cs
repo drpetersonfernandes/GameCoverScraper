@@ -116,16 +116,16 @@ public sealed class ImageFolderWatcher : IDisposable
             if (string.IsNullOrEmpty(fileNameWithoutExt))
                 return;
 
-            // Deduplicate: skip if this file name was processed very recently
-            if (!_recentlyProcessed.TryAdd(fileNameWithoutExt, 1))
+            // Deduplicate: skip if this exact file path was processed very recently
+            if (!_recentlyProcessed.TryAdd(filePath, 1))
                 return;
 
             // Clean up old dedupe entries after 5 seconds
-            var ext = fileNameWithoutExt;
+            var dedupeKey = filePath;
             _ = Task.Run(async () =>
             {
                 await Task.Delay(5000);
-                _recentlyProcessed.TryRemove(ext, out _);
+                _recentlyProcessed.TryRemove(dedupeKey, out _);
             });
 
             await _processingLock.WaitAsync();
@@ -139,21 +139,21 @@ public sealed class ImageFolderWatcher : IDisposable
                 var renameTarget = PendingRenameTarget;
                 if (!string.IsNullOrEmpty(renameTarget))
                 {
-                    PendingRenameTarget = null;
                     var directory = Path.GetDirectoryName(filePath);
                     var renamedPath = Path.Combine(directory ?? ".", renameTarget + extension);
 
                     var renamed = await MoveFileWithRetryAsync(filePath, renamedPath);
                     if (renamed)
                     {
-                        _recentlyProcessed.TryAdd(renameTarget, 1);
+                        PendingRenameTarget = null;
+                        _recentlyProcessed.TryAdd(renamedPath, 1);
+                        AppLogger.Log($"ImageFolderWatcher: renamed '{Path.GetFileName(filePath)}' to '{Path.GetFileName(renamedPath)}'");
                         filePath = renamedPath;
                         fileNameWithoutExt = renameTarget;
-                        AppLogger.Log($"ImageFolderWatcher: renamed '{Path.GetFileName(filePath)}' to '{Path.GetFileName(renamedPath)}'");
                     }
                     else
                     {
-                        AppLogger.Log($"ImageFolderWatcher: failed to rename '{filePath}' to '{renamedPath}' after retries");
+                        AppLogger.Log($"ImageFolderWatcher: failed to rename '{filePath}' to '{renamedPath}' after retries — PendingRenameTarget kept for next file");
                     }
                 }
 
@@ -163,7 +163,7 @@ public sealed class ImageFolderWatcher : IDisposable
                     if (convertedPath == null)
                         return;
 
-                    _recentlyProcessed.TryAdd(fileNameWithoutExt, 1);
+                    _recentlyProcessed.TryAdd(convertedPath, 1);
 
                     filePath = convertedPath;
                 }
