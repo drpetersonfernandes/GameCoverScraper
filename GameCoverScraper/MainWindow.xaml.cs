@@ -735,7 +735,12 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
     private static string? FindCorrespondingRomFile(string fileNameWithoutExtension, string romFolderPath)
     {
-        var supportedExtensions = new[] { ".iso", ".zip", ".7z", ".rar", ".chd", ".cue", ".bin", ".gcz", ".rvz", ".wbf", ".wbfs", ".nds", ".3ds", ".cia", ".gba", ".gbc", ".nes", ".sfc", ".smc", ".md", ".gen", ".n64", ".z64", ".v64" };
+        var supportedExtensions = new[]
+        {
+            ".iso", ".zip", ".7z", ".rar", ".chd", ".cue", ".bin", ".gcz", ".rvz", ".wbf", ".wbfs", ".nds",
+            ".3ds", ".cia", ".gba", ".gbc", ".nes", ".sfc", ".smc", ".md", ".gen", ".n64", ".z64", ".v64",
+            ".dummy", ".bat", ".url", ".lnk"
+        };
 
         foreach (var ext in supportedExtensions)
         {

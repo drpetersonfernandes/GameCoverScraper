@@ -19,7 +19,23 @@ public sealed class ImageFolderWatcher : IDisposable
 
     public event Action<string>? ImageFound;
 
-    public string? PendingRenameTarget { get; set; }
+    private string? _pendingRenameTarget;
+    private readonly object _renameLock = new();
+
+    public string? PendingRenameTarget
+    {
+        get { lock (_renameLock) { return _pendingRenameTarget; } }
+        set
+        {
+            lock (_renameLock)
+            {
+                var old = _pendingRenameTarget;
+                _pendingRenameTarget = value;
+                if (old != value)
+                    AppLogger.Log($"ImageFolderWatcher: PendingRenameTarget changed from '{old}' to '{value}'");
+            }
+        }
+    }
 
     public void Start(string folderPath)
     {
@@ -36,11 +52,13 @@ public sealed class ImageFolderWatcher : IDisposable
             NotifyFilter = NotifyFilters.FileName,
             Filter = "*.*",
             IncludeSubdirectories = false,
+            InternalBufferSize = 64 * 1024,
             EnableRaisingEvents = true
         };
 
         _watcher.Created += OnFileCreated;
         _watcher.Renamed += OnFileRenamed;
+        _watcher.Error += OnWatcherError;
 
         AppLogger.Log($"ImageFolderWatcher: started watching '{folderPath}'");
     }
@@ -52,10 +70,16 @@ public sealed class ImageFolderWatcher : IDisposable
         _watcher.EnableRaisingEvents = false;
         _watcher.Created -= OnFileCreated;
         _watcher.Renamed -= OnFileRenamed;
+        _watcher.Error -= OnWatcherError;
         _watcher.Dispose();
         _watcher = null;
 
         AppLogger.Log("ImageFolderWatcher: stopped");
+    }
+
+    private void OnWatcherError(object sender, ErrorEventArgs e)
+    {
+        _ = ErrorLogger.LogAsync(e.GetException(), "ImageFolderWatcher: FileSystemWatcher error (buffer overflow or system error)");
     }
 
     private async void OnFileCreated(object sender, FileSystemEventArgs e)
@@ -63,6 +87,8 @@ public sealed class ImageFolderWatcher : IDisposable
         try
         {
             if (_disposed) return;
+
+            AppLogger.Log($"ImageFolderWatcher: OnFileCreated fired for '{e.FullPath}'");
 
             try
             {
@@ -84,6 +110,8 @@ public sealed class ImageFolderWatcher : IDisposable
         try
         {
             if (_disposed) return;
+
+            AppLogger.Log($"ImageFolderWatcher: OnFileRenamed fired for '{e.FullPath}'");
 
             try
             {
@@ -109,7 +137,10 @@ public sealed class ImageFolderWatcher : IDisposable
             var extension = Path.GetExtension(filePath).ToLowerInvariant();
 
             if (!SupportedExtensions.Contains(extension))
+            {
+                AppLogger.Log($"ImageFolderWatcher: skipping '{Path.GetFileName(filePath)}' — extension '{extension}' not supported");
                 return;
+            }
 
             var fileNameWithoutExt = Path.GetFileNameWithoutExtension(filePath);
 
@@ -118,7 +149,10 @@ public sealed class ImageFolderWatcher : IDisposable
 
             // Deduplicate: skip if this exact file path was processed very recently
             if (!_recentlyProcessed.TryAdd(filePath, 1))
+            {
+                AppLogger.Log($"ImageFolderWatcher: skipping '{Path.GetFileName(filePath)}' — dedup hit");
                 return;
+            }
 
             // Clean up old dedupe entries after 5 seconds
             var dedupeKey = filePath;
@@ -134,13 +168,28 @@ public sealed class ImageFolderWatcher : IDisposable
                 await WaitForFileReadyAsync(filePath);
 
                 if (!File.Exists(filePath))
+                {
+                    AppLogger.Log($"ImageFolderWatcher: file disappeared after wait: '{filePath}'");
                     return;
+                }
 
                 var renameTarget = PendingRenameTarget;
+                AppLogger.Log($"ImageFolderWatcher: processing '{Path.GetFileName(filePath)}' — PendingRenameTarget = '{renameTarget}'");
+
                 if (!string.IsNullOrEmpty(renameTarget))
                 {
                     var directory = Path.GetDirectoryName(filePath);
                     var renamedPath = Path.Combine(directory ?? ".", renameTarget + extension);
+
+                    if (File.Exists(renamedPath))
+                    {
+                        AppLogger.Log($"ImageFolderWatcher: target '{Path.GetFileName(renamedPath)}' already exists, deleting it first");
+                        try { File.Delete(renamedPath); }
+                        catch (Exception ex)
+                        {
+                            _ = ErrorLogger.LogAsync(ex, $"ImageFolderWatcher: failed to delete existing target '{renamedPath}'");
+                        }
+                    }
 
                     var renamed = await MoveFileWithRetryAsync(filePath, renamedPath);
                     if (renamed)
@@ -161,13 +210,17 @@ public sealed class ImageFolderWatcher : IDisposable
                 {
                     var convertedPath = await ConvertToPngWithRetryAsync(filePath);
                     if (convertedPath == null)
+                    {
+                        AppLogger.Log($"ImageFolderWatcher: conversion to PNG failed for '{filePath}' — ImageFound NOT fired");
                         return;
+                    }
 
                     _recentlyProcessed.TryAdd(convertedPath, 1);
 
                     filePath = convertedPath;
                 }
 
+                AppLogger.Log($"ImageFolderWatcher: firing ImageFound for '{fileNameWithoutExt}'");
                 ImageFound?.Invoke(fileNameWithoutExt);
             }
             catch (Exception ex)
