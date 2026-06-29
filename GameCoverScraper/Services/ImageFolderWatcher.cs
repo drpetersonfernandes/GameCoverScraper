@@ -37,6 +37,31 @@ public sealed class ImageFolderWatcher : IDisposable
         }
     }
 
+    public bool TryClearPendingRenameTarget(string? expectedValue)
+    {
+        lock (_renameLock)
+        {
+            if (_pendingRenameTarget != expectedValue)
+                return false;
+
+            var old = _pendingRenameTarget;
+            _pendingRenameTarget = null;
+            AppLogger.Log($"ImageFolderWatcher: PendingRenameTarget cleared from '{old}'");
+            return true;
+        }
+    }
+
+    public void PreRegisterExpectedFile(string filePath)
+    {
+        _recentlyProcessed.TryAdd(filePath, 1);
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(5000);
+            _recentlyProcessed.TryRemove(filePath, out _);
+        });
+        AppLogger.Log($"ImageFolderWatcher: pre-registered '{Path.GetFileName(filePath)}' so watcher will skip it");
+    }
+
     public void Start(string folderPath)
     {
         Stop();
@@ -73,6 +98,16 @@ public sealed class ImageFolderWatcher : IDisposable
         _watcher.Error -= OnWatcherError;
         _watcher.Dispose();
         _watcher = null;
+
+        // Wait for any in-flight ProcessFileAsync to complete
+        if (!_processingLock.Wait(TimeSpan.FromSeconds(15)))
+        {
+            AppLogger.Log("ImageFolderWatcher: timed out waiting for in-flight processing to complete");
+        }
+        else
+        {
+            _processingLock.Release();
+        }
 
         AppLogger.Log("ImageFolderWatcher: stopped");
     }
@@ -194,7 +229,7 @@ public sealed class ImageFolderWatcher : IDisposable
                     var renamed = await MoveFileWithRetryAsync(filePath, renamedPath);
                     if (renamed)
                     {
-                        PendingRenameTarget = null;
+                        TryClearPendingRenameTarget(renameTarget);
                         _recentlyProcessed.TryAdd(renamedPath, 1);
                         AppLogger.Log($"ImageFolderWatcher: renamed '{Path.GetFileName(filePath)}' to '{Path.GetFileName(renamedPath)}'");
                         filePath = renamedPath;
@@ -220,6 +255,7 @@ public sealed class ImageFolderWatcher : IDisposable
                     filePath = convertedPath;
                 }
 
+                fileNameWithoutExt = Path.GetFileNameWithoutExtension(filePath);
                 AppLogger.Log($"ImageFolderWatcher: firing ImageFound for '{fileNameWithoutExt}'");
                 ImageFound?.Invoke(fileNameWithoutExt);
             }

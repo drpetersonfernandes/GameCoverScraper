@@ -26,6 +26,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     private bool _disposed;
     private CoreWebView2Environment? _webViewEnv;
     private ImageFolderWatcher? _imageFolderWatcher;
+    private string? _watchedFolderPath;
     private SystemTrayIcon? _systemTrayIcon;
     private bool _isMinimizedToTray;
 
@@ -107,7 +108,11 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         DataContext = this;
 
         CheckForMissingImagesCommand = new DelegateCommand(
-            _ => BtnCheckForMissingImages_ClickAsync(this, new RoutedEventArgs()),
+            async void (o) =>
+            {
+                try { await RefreshMissingImagesListAsync(); }
+                catch (Exception ex) { o = ErrorLogger.LogAsync(ex, "Error in CheckForMissingImagesCommand"); }
+            },
             _ => BtnCheckForMissingImages?.IsEnabled ?? false);
         ExitCommand = new DelegateCommand(_ => Close());
 
@@ -929,6 +934,11 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
     private void StartImageFolderWatcher(string? folderPath)
     {
+        if (string.Equals(_watchedFolderPath, folderPath, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        _watchedFolderPath = folderPath;
+
         _imageFolderWatcher?.Stop();
 
         if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))

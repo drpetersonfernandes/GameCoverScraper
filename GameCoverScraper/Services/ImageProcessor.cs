@@ -276,6 +276,8 @@ public static class ImageProcessor
             ".avif" => MagickFormat.Avif,
             ".heic" => MagickFormat.Heic,
             ".heif" => MagickFormat.Heif,
+            ".jxl" => MagickFormat.Jxl,
+            ".jp2" => MagickFormat.Jp2,
             _ => MagickFormat.Unknown
         };
 

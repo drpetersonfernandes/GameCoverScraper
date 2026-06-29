@@ -202,6 +202,7 @@ public partial class MainWindow
         if (string.IsNullOrEmpty(_selectedRomFileName) || string.IsNullOrEmpty(imagePath) || string.IsNullOrEmpty(imageFolderPath)) return;
 
         var newFileName = Path.Combine(imageFolderPath, _selectedRomFileName + ".png");
+        _imageFolderWatcher?.PreRegisterExpectedFile(newFileName);
 
         try
         {
