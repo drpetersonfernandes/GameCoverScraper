@@ -43,7 +43,7 @@ public partial class MainWindow
         _selectedRomFileName = selectedItemRomName;
 
         var activeTab = SearchTabControl.SelectedIndex;
-        _imageFolderWatcher?.PendingRenameTarget = activeTab is 1 or 2 ? selectedItemRomName : null;
+        _imageFolderWatcher?.PendingRenameTarget = selectedItemRomName;
 
         try { Clipboard.SetText(selectedItemRomName); }
         catch (System.Runtime.InteropServices.COMException)
