@@ -896,6 +896,24 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
         }
     }
 
+    private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.F8)
+        {
+            var filePath = ScreenshotService.CaptureActiveWindow();
+            if (filePath is not null)
+            {
+                StatusMessage.Text = $"Screenshot saved: {filePath}";
+            }
+            else
+            {
+                StatusMessage.Text = "Screenshot failed. Check the log for details.";
+            }
+
+            e.Handled = true;
+        }
+    }
+
     private string? GetValidatedImageFolderPath(bool showWarning = true)
     {
         return ValidateFolderPath(TxtImageFolder.Text.Trim(), "Image", showWarning);

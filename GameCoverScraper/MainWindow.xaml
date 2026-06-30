@@ -9,7 +9,8 @@
                       Title="GameCoverScraper"
                       MinWidth="900"
                       MinHeight="600"
-                      WindowStartupLocation="CenterScreen">
+                      WindowStartupLocation="CenterScreen"
+                      PreviewKeyDown="MainWindow_PreviewKeyDown">
 
     <controls:MetroWindow.Resources>
         <DataTemplate x:Key="LocalImageCellTemplate">
