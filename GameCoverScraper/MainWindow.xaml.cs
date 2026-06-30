@@ -28,7 +28,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
     private ImageFolderWatcher? _imageFolderWatcher;
     private string? _watchedFolderPath;
     private SystemTrayIcon? _systemTrayIcon;
-    private bool _isMinimizedToTray;
+    private bool _isExiting;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -168,7 +168,6 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
     private void MinimizeToTray()
     {
-        _isMinimizedToTray = true;
         _systemTrayIcon!.Visible = true;
         Hide();
         _systemTrayIcon.ShowBalloonTip("GameCoverScraper", "Application minimized to tray.");
@@ -176,7 +175,6 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
     private void RestoreFromTray()
     {
-        _isMinimizedToTray = false;
         Show();
         WindowState = WindowState.Normal;
         Activate();
@@ -185,6 +183,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
     private void ExitApplication()
     {
+        _isExiting = true;
         _systemTrayIcon?.Dispose();
         _systemTrayIcon = null;
         Application.Current.Shutdown();
@@ -392,7 +391,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
                 var tb = sp.Children.OfType<TextBlock>().FirstOrDefault();
                 if (tb != null)
                 {
-                    menuItem.IsChecked = tb.Text.Replace("Accent", "") == currentAccent;
+                    menuItem.IsChecked = tb.Text == currentAccent;
                 }
             }
             else
@@ -482,9 +481,9 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
     private void OnWindowClosing(object? sender, CancelEventArgs e)
     {
-        if (_isMinimizedToTray)
+        if (_isExiting)
         {
-            // Allow close when exiting from tray - cancel running operations
+            // Allow close when explicitly exiting
             try { _findSimilarCts?.Cancel(); }
             catch
             {
@@ -565,7 +564,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
     private async Task LoadMissingImagesListAsync(CancellationToken cancellationToken = default)
     {
-        if (Settings.SupportedExtensions.Length == 0)
+        if (Settings.SupportedExtensions.Count == 0)
         {
             MessageBox.Show("No supported file extensions loaded. Please check settings.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
@@ -649,7 +648,7 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
 
     private static string? FindCorrespondingImage(string fileNameWithoutExtension, string imageFolderPath)
     {
-        foreach (var ext in new[] { ".png", ".jpg", ".jpeg", ".avif", ".bmp", ".gif", ".webp", ".tiff", ".tif" })
+        foreach (var ext in new[] { ".png", ".jpg", ".jpeg" })
         {
             var imagePath = Path.Combine(imageFolderPath, fileNameWithoutExtension + ext);
             if (File.Exists(imagePath)) return imagePath;

@@ -58,7 +58,7 @@ public partial class App
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"FireAndForget caught unhandled exception: {ex}");
+                _ = ErrorLogger.LogAsync(ex, "FireAndForget caught unhandled exception");
             }
         });
     }

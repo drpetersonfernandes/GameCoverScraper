@@ -249,9 +249,9 @@ public class SettingsManager : INotifyPropertyChanged
 
     // --- Extensions ---
 
-    private string[] _supportedExtensions = Array.Empty<string>();
+    private List<string> _supportedExtensions = [];
 
-    public string[] SupportedExtensions
+    public List<string> SupportedExtensions
     {
         get => _supportedExtensions;
         set
@@ -406,10 +406,10 @@ public class SettingsManager : INotifyPropertyChanged
                 SupportedExtensions = extensionsElement.Elements("Extension")
                     .Select(static e => e.Value)
                     .Where(static e => !string.IsNullOrEmpty(e))
-                    .ToArray();
+                    .ToList();
             }
 
-            if (SupportedExtensions.Length == 0)
+            if (SupportedExtensions.Count == 0)
             {
                 SupportedExtensions = GetDefaultExtensions();
             }
@@ -513,7 +513,7 @@ public class SettingsManager : INotifyPropertyChanged
             }
 
             doc.Save(tempFilePath);
-            File.Copy(tempFilePath, filePath, true);
+            File.Move(tempFilePath, filePath, true);
             return true;
         }
         catch (UnauthorizedAccessException ex)
@@ -568,7 +568,7 @@ public class SettingsManager : INotifyPropertyChanged
         _googleSearchEngineId = "d30e97188f5914611";
     }
 
-    private static string[] GetDefaultExtensions()
+    private static List<string> GetDefaultExtensions()
     {
         return
         [

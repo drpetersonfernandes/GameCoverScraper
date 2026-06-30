@@ -138,7 +138,7 @@ public partial class SettingsWindow
                 .OrderBy(static ext => ext, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            _settingsManager.SupportedExtensions = normalizedExtensions.ToArray();
+            _settingsManager.SupportedExtensions = normalizedExtensions;
             _settingsManager.SaveSettings();
 
             DialogResult = true;
