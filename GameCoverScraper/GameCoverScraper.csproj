@@ -9,8 +9,8 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <ApplicationIcon>icon\scraper.ico</ApplicationIcon>
         <PackageIcon>icon2.png</PackageIcon>
-        <AssemblyVersion>2.0.0</AssemblyVersion>
-        <FileVersion>2.0.0</FileVersion>
+        <AssemblyVersion>1.7.2</AssemblyVersion>
+        <FileVersion>1.7.2</FileVersion>
         <LangVersion>14</LangVersion>
         <DebugType>embedded</DebugType>
         <DebugSymbols>true</DebugSymbols>
