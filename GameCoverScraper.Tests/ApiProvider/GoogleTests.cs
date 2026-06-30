@@ -14,14 +14,13 @@ public class GoogleTests
     {
         var settings = new SettingsManager
         {
-            GoogleKey = "test-key",
-            GoogleSearchEngineId = "test-cx"
+            GoogleKey = "test-key"
         };
 
         var url = Google.BuildRequestUrl("Super Mario", settings);
 
         url.Should().Contain("q=Super+Mario");
-        url.Should().Contain("cx=test-cx");
+        url.Should().Contain("cx=d30e97188f5914611");
         url.Should().Contain("key=test-key");
         url.Should().Contain("num=10");
         url.Should().Contain("searchType=image");
@@ -33,8 +32,7 @@ public class GoogleTests
     {
         var settings = new SettingsManager
         {
-            GoogleKey = "test-key",
-            GoogleSearchEngineId = "test-cx"
+            GoogleKey = "test-key"
         };
 
         var url = Google.BuildRequestUrl("game & art", settings);
@@ -43,27 +41,11 @@ public class GoogleTests
     }
 
     [Fact]
-    public void BuildRequestUrlWithEmptySearchEngineIdShouldThrow()
-    {
-        var settings = new SettingsManager
-        {
-            GoogleKey = "test-key",
-            GoogleSearchEngineId = string.Empty
-        };
-
-        var act = () => Google.BuildRequestUrl("test", settings);
-
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*Search Engine ID*");
-    }
-
-    [Fact]
     public void BuildRequestUrlWithEmptyApiKeyShouldThrow()
     {
         var settings = new SettingsManager
         {
-            GoogleKey = string.Empty,
-            GoogleSearchEngineId = "test-cx"
+            GoogleKey = string.Empty
         };
 
         var act = () => Google.BuildRequestUrl("test", settings);
@@ -77,8 +59,7 @@ public class GoogleTests
     {
         var settings = new SettingsManager
         {
-            GoogleKey = "test-key",
-            GoogleSearchEngineId = "test-cx"
+            GoogleKey = "test-key"
         };
 
         var act = () => Google.BuildRequestUrl("   ", settings);

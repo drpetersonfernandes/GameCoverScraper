@@ -115,7 +115,6 @@ public class SettingsManagerTests : IDisposable
         settings.BaseTheme.Should().Be("Dark");
         settings.AccentColor.Should().Be("Blue");
         settings.UseMameDescriptions.Should().BeFalse();
-        settings.GoogleSearchEngineId.Should().Be("d30e97188f5914611");
         settings.SupportedExtensions.Should().NotBeEmpty();
     }
 
@@ -129,8 +128,7 @@ public class SettingsManagerTests : IDisposable
             BaseTheme = "Dark",
             AccentColor = "Red",
             UseMameDescriptions = true,
-            GoogleKey = "test-key",
-            GoogleSearchEngineId = "test-engine-id"
+            GoogleKey = "test-key"
         };
 
         settings.SaveSettings();
@@ -144,7 +142,6 @@ public class SettingsManagerTests : IDisposable
         loadedSettings.AccentColor.Should().Be("Red");
         loadedSettings.UseMameDescriptions.Should().BeTrue();
         loadedSettings.GoogleKey.Should().Be("test-key");
-        loadedSettings.GoogleSearchEngineId.Should().Be("test-engine-id");
     }
 
     [Fact]

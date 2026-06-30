@@ -14,6 +14,7 @@ public class Google
 {
     private const int MaxResults = 10;
     private const string ProviderName = "Google";
+    private const string SearchEngineId = "d30e97188f5914611";
 
     private static readonly JsonSerializerOptions LogJsonSerializerOptions = new()
     {
@@ -26,18 +27,13 @@ public class Google
         ArgumentException.ThrowIfNullOrWhiteSpace(searchQuery);
         var encodedSearchQuery = HttpUtility.UrlEncode(searchQuery.Trim());
 
-        if (string.IsNullOrEmpty(settingsManager.GoogleSearchEngineId))
-        {
-            throw new InvalidOperationException("Google Search Engine ID is not configured");
-        }
-
         if (string.IsNullOrEmpty(settingsManager.GoogleKey))
         {
             throw new InvalidOperationException("Google API Key is not configured");
         }
 
         AppLogger.Log($"Google Search Query: {searchQuery}");
-        return $"https://www.googleapis.com/customsearch/v1?q={encodedSearchQuery}&cx={HttpUtility.UrlEncode(settingsManager.GoogleSearchEngineId)}&num={MaxResults}&searchType=image&key={HttpUtility.UrlEncode(settingsManager.GoogleKey)}";
+        return $"https://www.googleapis.com/customsearch/v1?q={encodedSearchQuery}&cx={HttpUtility.UrlEncode(SearchEngineId)}&num={MaxResults}&searchType=image&key={HttpUtility.UrlEncode(settingsManager.GoogleKey)}";
     }
 
     internal static GoogleSearchResult? DeserializeResponse(string json, JsonSerializerOptions jsonOptions)

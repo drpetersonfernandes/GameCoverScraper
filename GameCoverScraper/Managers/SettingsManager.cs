@@ -321,20 +321,6 @@ public class SettingsManager : INotifyPropertyChanged
         }
     }
 
-    private string _googleSearchEngineId = "d30e97188f5914611";
-
-    public string GoogleSearchEngineId
-    {
-        get => _googleSearchEngineId;
-        set
-        {
-            if (_googleSearchEngineId == value) return;
-
-            _googleSearchEngineId = value;
-            OnPropertyChanged(nameof(GoogleSearchEngineId));
-        }
-    }
-
     // --- Constructor and Load/Save ---
 
     public SettingsManager()
@@ -398,7 +384,6 @@ public class SettingsManager : INotifyPropertyChanged
             BugReportApiKey = GetValue("BugReportApiKey", AppConstants.BugReportApiKey);
             BugReportApiUrl = GetValue("BugReportApiUrl", AppConstants.BugReportApiUrl);
             GoogleKey = GetValue("GoogleKey", string.Empty);
-            GoogleSearchEngineId = GetValue("GoogleSearchEngineId", "d30e97188f5914611");
 
             var extensionsElement = root.Element("SupportedExtensions");
             if (extensionsElement != null)
@@ -483,8 +468,7 @@ public class SettingsManager : INotifyPropertyChanged
                     new XElement("SearchEngine", SearchEngine),
                     new XElement("BugReportApiKey", BugReportApiKey),
                     new XElement("BugReportApiUrl", BugReportApiUrl),
-                    new XElement("GoogleKey", GoogleKey),
-                    new XElement("GoogleSearchEngineId", GoogleSearchEngineId)
+                    new XElement("GoogleKey", GoogleKey)
                 )
             );
 
@@ -565,7 +549,6 @@ public class SettingsManager : INotifyPropertyChanged
         _bugReportApiKey = AppConstants.BugReportApiKey;
         _bugReportApiUrl = AppConstants.BugReportApiUrl;
         _googleKey = string.Empty;
-        _googleSearchEngineId = "d30e97188f5914611";
     }
 
     private static List<string> GetDefaultExtensions()

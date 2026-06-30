@@ -199,20 +199,6 @@ public class SettingsManagerEdgeCaseTests : IDisposable
     }
 
     [Fact]
-    public void GoogleSearchEngineIdShouldBePersisted()
-    {
-        var settings = new SettingsManager();
-        settings.LoadSettings();
-        settings.GoogleSearchEngineId = "custom-engine-id";
-        settings.SaveSettings();
-
-        var loaded = new SettingsManager();
-        loaded.LoadSettings();
-
-        loaded.GoogleSearchEngineId.Should().Be("custom-engine-id");
-    }
-
-    [Fact]
     public void UseMameDescriptionsShouldBePersisted()
     {
         var settings = new SettingsManager();
