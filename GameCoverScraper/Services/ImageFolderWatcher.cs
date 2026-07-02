@@ -230,6 +230,7 @@ public sealed class ImageFolderWatcher : IDisposable
                     if (renamed)
                     {
                         TryClearPendingRenameTarget(renameTarget);
+                        _recentlyProcessed.TryRemove(filePath, out _);
                         _recentlyProcessed.TryAdd(renamedPath, 1);
                         _ = Task.Run(async () =>
                         {
