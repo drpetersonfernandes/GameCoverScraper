@@ -211,6 +211,7 @@ public sealed class ImageFolderWatcher : IDisposable
                 var renameTarget = PendingRenameTarget;
                 AppLogger.Log($"ImageFolderWatcher: processing '{Path.GetFileName(filePath)}' — PendingRenameTarget = '{renameTarget}'");
 
+                var wasRenamed = false;
                 if (!string.IsNullOrEmpty(renameTarget))
                 {
                     var directory = Path.GetDirectoryName(filePath);
@@ -229,6 +230,7 @@ public sealed class ImageFolderWatcher : IDisposable
                     var renamed = await MoveFileWithRetryAsync(filePath, renamedPath);
                     if (renamed)
                     {
+                        wasRenamed = true;
                         TryClearPendingRenameTarget(renameTarget);
                         _recentlyProcessed.TryRemove(filePath, out _);
                         _recentlyProcessed.TryAdd(renamedPath, 1);
@@ -244,6 +246,16 @@ public sealed class ImageFolderWatcher : IDisposable
                     {
                         AppLogger.Log($"ImageFolderWatcher: failed to rename '{filePath}' to '{renamedPath}' after retries — PendingRenameTarget kept for next file");
                     }
+                }
+                else
+                {
+                    AppLogger.Log($"ImageFolderWatcher: no PendingRenameTarget set for '{Path.GetFileName(filePath)}' — skipping rename");
+                }
+
+                if (!wasRenamed)
+                {
+                    AppLogger.Log($"ImageFolderWatcher: skipping conversion for '{Path.GetFileName(filePath)}' — file was not renamed to a game name");
+                    return;
                 }
 
                 if (!Path.GetExtension(filePath).Equals(".png", StringComparison.OrdinalIgnoreCase))

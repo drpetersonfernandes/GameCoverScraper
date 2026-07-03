@@ -34,7 +34,6 @@ public partial class MainWindow
             IsSearching = false;
             HasSearchedSimilar = false;
             HasSearchedApi = false;
-            _imageFolderWatcher?.PendingRenameTarget = null;
             return;
         }
 

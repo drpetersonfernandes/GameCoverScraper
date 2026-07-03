@@ -986,7 +986,12 @@ public partial class MainWindow : INotifyPropertyChanged, IDisposable
             var index = MissingImages.ToList().FindIndex(m =>
                 string.Equals(m.RomName, fileNameWithoutExtension, StringComparison.OrdinalIgnoreCase));
 
-            if (index < 0) return;
+            if (index < 0)
+            {
+                AppLogger.Log($"ImageFolderWatcher: image '{fileNameWithoutExtension}' does not match any missing ROM name — skipping");
+                StatusMessage.Text = $"Image '{fileNameWithoutExtension}.png' was saved but doesn't match any missing ROM name.";
+                return;
+            }
 
             RemoveSelectedItem(index);
             AppLogger.Log($"Auto-removed '{fileNameWithoutExtension}' from missing images.");
